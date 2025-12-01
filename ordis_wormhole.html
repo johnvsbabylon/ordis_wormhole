@@ -1,0 +1,3771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Traversable Wormhole Lab — Stage 5 (Ordis)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --primary: #53bba5;
+            --accent: #d946ef;
+            --bg-dark: rgba(10, 12, 16, 0.9);
+            --text-main: #e2e8f0;
+            --text-dim: #94a3b8;
+            --font-mono: "Courier New", Courier, monospace;
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #020617 0, #000 45%, #020617 100%);
+            font-family: var(--font-ui);
+            color: var(--text-main);
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud-container {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: min(360px, 96vw);
+            max-height: 80vh;
+            padding: 10px;
+            background:
+                radial-gradient(circle at top left, rgba(83,187,165,0.25), transparent 60%),
+                rgba(1, 6, 17, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(83,187,165,0.65);
+            box-shadow: 0 0 28px rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .hud-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .hud-column.left {
+            align-items: flex-start;
+        }
+        .hud-column.center {
+            align-items: center;
+        }
+        .hud-column.right {
+            align-items: flex-end;
+        }
+        .hud-column.center 
+        .hud-panel {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 6px 4px;
+            pointer-events: auto;
+            box-shadow: none;
+            max-width: 100%;
+            max-height: none;
+            overflow: visible;
+        }
+
+        #control-panel {
+            max-height: none;
+        }
+
+.hud-panel h1,
+        .hud-panel h2 {
+            margin: 0 0 8px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: var(--primary);
+            border-bottom: 1px solid rgba(148,163,184,0.3);
+            padding-bottom: 4px;
+        }
+
+        .hud-panel h2 span {
+            color: var(--accent);
+        }
+
+        .control-group {
+            margin-bottom: 8px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            margin-bottom: 3px;
+        }
+
+        .control-group small {
+            font-size: 10px;
+            color: #64748b;
+            display: block;
+            margin-top: 1px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.9);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 12px rgba(83,187,165,0.7);
+            cursor: pointer;
+            margin-top: -4px;
+        }
+
+        select {
+            width: 100%;
+            padding: 4px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid rgba(148,163,184,0.6);
+            background: rgba(15,23,42,0.9);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .btn {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 4px;
+            border: 1px solid rgba(83,187,165,0.8);
+            color: var(--primary);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 6px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 18px rgba(83,187,165,0.8);
+        }
+
+        .btn.secondary {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn.secondary:hover {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 18px rgba(217,70,239,0.8);
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 3px 8px;
+        }
+
+        .telemetry-row {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(30,64,175,0.4);
+            padding-bottom: 1px;
+        }
+
+        .telemetry-label {
+            color: var(--text-dim);
+        }
+
+        .telemetry-value {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        #top-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 14px;
+            font-size: 11px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.6);
+            background: rgba(2,6,23,0.9);
+            color: var(--text-dim);
+            pointer-events: none;
+            font-family: var(--font-mono);
+            z-index: 15;
+        }
+
+        #top-bar span {
+            color: var(--primary);
+        }
+
+        #hud-menu-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            pointer-events: auto;
+            background: rgba(2,6,23,0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(83,187,165,0.7);
+            font-family: var(--font-mono);
+            padding: 4px 10px;
+            font-size: 10px;
+            color: var(--primary);
+            cursor: pointer;
+            letter-spacing: 0.12em;
+        }
+
+        #notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #f9fafb;
+            text-shadow: 0 0 20px rgba(83,187,165,1), 0 0 40px rgba(217,70,239,1);
+            opacity: 0;
+            transition: opacity 0.7s ease;
+            pointer-events: none;
+            z-index: 25;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-dim);
+        }
+
+        .status-indicator {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: #0f172a;
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        .status-indicator.active {
+            background: var(--accent);
+            box-shadow: 0 0 12px rgba(217,70,239,0.9);
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.25); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .badge {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            padding: 2px 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.5);
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+
+        .badge.good {
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .badge.bad {
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .badge.critical {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+        .glass-toggle {
+            border-radius: 999px;
+            border: 1px solid rgba(148,163,184,0.7);
+            background: radial-gradient(circle at top, rgba(148,163,184,0.32), rgba(15,23,42,0.92));
+            box-shadow: 0 0 12px rgba(15,23,42,0.9);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            padding: 2px 9px;
+            color: var(--text-dim);
+            cursor: pointer;
+            backdrop-filter: blur(7px);
+            margin-left: 8px;
+        }
+        .glass-toggle.glass-on {
+            color: var(--primary);
+            border-color: rgba(83,187,165,0.95);
+            box-shadow: 0 0 14px rgba(83,187,165,0.9);
+        }
+        .glass-toggle.glass-off {
+            color: #64748b;
+            border-color: rgba(148,163,184,0.45);
+            box-shadow: 0 0 10px rgba(15,23,42,0.8);
+            opacity: 0.7;
+        }
+        .hud-panel h1,
+        .hud-panel h2 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hud-panel-body {
+            margin-top: 6px;
+        }
+        .hud-panel-body.hud-panel-hidden {
+            display: none;
+        }
+
+
+        .energy-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding-bottom: 1px;
+            border-bottom: 1px dashed rgba(30,64,175,0.4);
+            margin-bottom: 2px;
+        }
+
+        .energy-label {
+            color: var(--text-dim);
+        }
+
+        .energy-value {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .energy-value.good { color: #22c55e; }
+        .energy-value.bad { color: #f97316; }
+        .energy-value.critical { color: #ef4444; }
+
+        
+        .petrov-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            border-bottom: 1px dashed rgba(30,64,175,0.4);
+            padding-bottom: 1px;
+            margin-bottom: 2px;
+        }
+        .petrov-label {
+            color: var(--text-dim);
+        }
+        .petrov-value {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .spectrum-wrapper {
+            margin-top: 6px;
+        }
+        .spectrum-header {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 2px;
+            color: var(--text-dim);
+        }
+        #spectrum-canvas {
+            width: 100%;
+            height: 60px;
+            border-radius: 4px;
+            border: 1px solid rgba(148,163,184,0.6);
+            background: radial-gradient(circle at top, #020617, #000);
+        }
+
+        @media (max-width: 960px) {
+            body {
+                overflow: hidden;
+            }
+            #hud-container {
+                left: 50%;
+                top: 70px;
+                transform: translateX(-50%);
+                width: 96vw;
+                max-height: 60vh;
+            }
+            .hud-panel h1,
+            .hud-panel h2 {
+                font-size: 9px;
+            }
+            .control-group label,
+            .telemetry-row,
+            .energy-row,
+            .petrov-row {
+                font-size: 8.5px;
+            }
+            .btn {
+                font-size: 9px;
+                padding: 5px 6px;
+            }
+            .badge,
+            .spectrum-header {
+                font-size: 8.5px;
+            }
+            #top-bar {
+                font-size: 9px;
+                padding: 3px 10px;
+            }
+            #hud-menu-toggle {
+                font-size: 9px;
+                padding: 3px 8px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+<div id="top-bar">
+    METRIC: <span>ELLIS / MORRIS–THORNE</span> &nbsp;|&nbsp; CLASS: <span>TRAVERSABLE LORENTZIAN</span>
+</div>
+<button id="hud-menu-toggle">HUD: ON</button>
+<div id="notification">CROSSING THROAT</div>
+
+<div id="hud-container">
+    <div class="hud-column left">
+        <div class="hud-panel" id="control-panel">
+            <h1>Wormhole Control Lab — Stage 5</h1>
+            <div class="control-group">
+                <label>THROAT RADIUS r₀ <span id="val-r0">1.5</span></label>
+                <input id="input-r0" type="range" min="0.5" max="3.0" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <label>TRAVERSAL ENERGY E <span id="val-energy">1.20</span></label>
+                <input id="input-energy" type="range" min="1.01" max="2.0" step="0.01" value="1.2">
+                <small>Timelike: E &gt; 1. Null: E sets affine scale only.</small>
+            </div>
+            <div class="control-group">
+                <label>AZIMUTHAL Lᵩ <span id="val-ang">0.5</span></label>
+                <input id="input-ang" type="range" min="0.0" max="3.0" step="0.1" value="0.5">
+                <small>Angular momentum about throat axis.</small>
+            </div>
+            <div class="control-group">
+                <label>POLAR ANGLE θ₀ (deg) <span id="val-theta0">90</span></label>
+                <input id="input-theta0" type="range" min="20" max="160" step="1" value="90">
+                <small>Launch latitude: 90° = equatorial plane.</small>
+            </div>
+            <div class="control-group">
+                <label>POLAR VELOCITY dθ/dτ <span id="val-thetaVel">0.00</span></label>
+                <input id="input-thetaVel" type="range" min="-0.6" max="0.6" step="0.02" value="0.0">
+                <small>Non-zero ⇒ true 3D twisting trajectory.</small>
+            </div>
+            <div class="control-group">
+                <label>GEODESIC TYPE</label>
+                <select id="mode-select">
+                    <option value="massive" selected>Massive (timelike)</option>
+                    <option value="photon">Photon (null)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>SPACETIME TOPOLOGY</label>
+                <select id="topology-select">
+                    <option value="single" selected>Single Throat</option>
+                    <option value="double">Double Throat (Experimental)</option>
+                    <option value="flared">Flared Morris–Thorne Family</option>
+                    <option value="long_flue">Long Flue (Extended Throat)</option>
+                    <option value="thin_shell">Thin-Shell Visser-Type</option>
+                </select>
+                <small>Shape family controls r(l) and flare-out / exotic region.</small>
+            </div>
+            <div class="control-group">
+                <label>TOPOLOGY MORPH μ <span id="val-topomorph">0.50</span></label>
+                <input id="input-topomorph" type="range" min="0.0" max="1.0" step="0.01" value="0.50">
+                <small>μ smoothly morphs double-throat separation / shape.</small>
+            </div>
+            <div class="control-group">
+                <label>VIEW TOGGLES</label>
+                <label><input id="toggle-wormhole" type="checkbox" checked> Wormhole Mesh</label>
+                <label><input id="toggle-stars" type="checkbox" checked> Starfields / Lensing</label>
+                <label><input id="toggle-hud" type="checkbox" checked> HUD / Panels</label>
+            </div>
+            <div class="btn-row">
+                <button class="btn" id="btn-start">Start Geodesic</button>
+                <button class="btn secondary" id="btn-reset">Reset View</button>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <div class="hud-column center">
+<div class="hud-panel">
+            <h2>Local Kinematics <span>/ τ–evolution</span></h2>
+            <div class="status-row">
+                <div class="status-indicator" id="status-indicator"></div>
+                <div id="status-text">IDLE — Waiting for trajectory</div>
+            </div>
+            <div class="telemetry-grid">
+                <div class="telemetry-row">
+                    <span class="telemetry-label">PROPER DIST l</span>
+                    <span class="telemetry-value" id="tel-l">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">r(l) = √(l² + r₀²)</span>
+                    <span class="telemetry-value" id="tel-r">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">θ (deg)</span>
+                    <span class="telemetry-value" id="tel-theta">90.0</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">φ (deg)</span>
+                    <span class="telemetry-value" id="tel-phi">0.0</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">dl/dτ</span>
+                    <span class="telemetry-value" id="tel-vrad">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">dθ/dτ</span>
+                    <span class="telemetry-value" id="tel-vtheta">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">dφ/dτ</span>
+                    <span class="telemetry-value" id="tel-vphi">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">PROPER TIME τ</span>
+                    <span class="telemetry-value" id="tel-tau">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">COORD TIME t</span>
+                    <span class="telemetry-value" id="tel-t">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">γ_eff (time dilation)</span>
+                    <span class="telemetry-value" id="tel-gamma">1.000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud-column right">
+        <div class="hud-panel">
+            <h2>Tidal / Jacobi Bundle</h2>
+            <div class="telemetry-grid">
+                <div class="telemetry-row">
+                    <span class="telemetry-label">GAUSS CURV K(l)</span>
+                    <span class="telemetry-value" id="tel-k">0.00e+00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">λʀ (stretch)</span>
+                    <span class="telemetry-value" id="tel-lamr">0.00e+00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">λ⊥ (compress)</span>
+                    <span class="telemetry-value" id="tel-lamt">0.00e+00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">|ξʀ| / ξʀ₀</span>
+                    <span class="telemetry-value" id="tel-xir">1.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">|ξ⊥| / ξ⊥₀</span>
+                    <span class="telemetry-value" id="tel-xit">1.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Bundle expansion θ</span>
+                    <span class="telemetry-value" id="tel-expansion">0.00</span>
+                </div>
+                <div class="telemetry-row">
+                    <span class="telemetry-label">Shear magnitude σ</span>
+                    <span class="telemetry-value" id="tel-shear">0.00</span>
+                </div>
+            </div>
+            <div class="badge-row">
+                <div class="badge" id="badge-tidal-safe">Tidal OK</div>
+                <div class="badge bad" id="badge-tidal-warning">Tidal High</div>
+                <div class="badge critical" id="badge-tidal-fatal">Spaghettification</div>
+            </div>
+        </div>
+
+        <div class="hud-panel">
+            <h2>Stress–Energy Diagnostics</h2>
+            <div class="energy-row">
+                <span class="energy-label">ρ_eff(l)</span>
+                <span class="energy-value" id="val-rho">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">pʀ_eff(l)</span>
+                <span class="energy-value" id="val-pr">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">p⊥_eff(l)</span>
+                <span class="energy-value" id="val-pt">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">NEC: ρ + pʀ</span>
+                <span class="energy-value" id="val-nec">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">WEC: ρ</span>
+                <span class="energy-value" id="val-wec">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">SEC: ρ + pʀ + 2p⊥</span>
+                <span class="energy-value" id="val-sec">0.00e+00</span>
+            </div>
+            <div class="energy-row">
+                <span class="energy-label">DEC: |ρ| ≥ |pᵢ| ?</span>
+                <span class="energy-value" id="val-dec">–</span>
+            </div>
+            <div class="badge-row">
+                <div class="badge bad" id="badge-exotic">Exotic Stress–Energy</div>
+                <div class="badge good" id="badge-normal">Normal Region</div>
+            </div>
+        </div>
+        <div class="hud-panel">
+            <h2>Null Bundle & Spectrum</h2>
+            <div class="petrov-row">
+                <span class="petrov-label">PETROV TYPE (approx)</span>
+                <span class="petrov-value" id="petrov-type">D</span>
+            </div>
+            <div class="petrov-row">
+                <span class="petrov-label">EIGEN λʀ</span>
+                <span class="petrov-value" id="eigen-lr">0.00e+00</span>
+            </div>
+            <div class="petrov-row">
+                <span class="petrov-label">EIGEN λ⊥</span>
+                <span class="petrov-value" id="eigen-lt">0.00e+00</span>
+            </div>
+            <div class="petrov-row">
+                <span class="petrov-label">BUNDLE COUNT</span>
+                <span class="petrov-value" id="bundle-count">≈ 2.8k</span>
+            </div>
+            <div class="control-group">
+                <label>CONGRUENCE INTENSITY <span id="val-bundle-intensity">0.60</span></label>
+                <input id="input-bundle-intensity" type="range" min="0.1" max="1.0" step="0.05" value="0.6">
+                <small>Scales effective null-ray density for lensing/caustics.</small>
+            </div>
+            <div class="spectrum-wrapper">
+                <div class="spectrum-header">Hα LINE PROFILE (λ₀ = 656.3 nm)</div>
+                <canvas id="spectrum-canvas" width="260" height="60"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== CORE CONFIG =====
+const CONFIG = {
+    r0: 1.5,
+    gridSegments: 140,
+    gridRings: 140,
+    tunnelLength: 60,
+    starCount: 2800,
+    physicsStep: 0.016,
+    tidalScale: 1.0,
+    bundleIntensity: 0.6
+};
+
+// ===== SPACETIME TOPOLOGY / RADIUS FUNCTION =====
+const SPACETIME_MODE = {
+    topology: "single",
+    doubleSeparation: 14.0,
+    morph: 0.5
+};
+
+function radiusFromTopology(l, r0) {
+    const l2 = l * l;
+
+    if (SPACETIME_MODE.topology === "single") {
+        return Math.sqrt(l2 + r0 * r0);
+    } else if (SPACETIME_MODE.topology === "double") {
+        // Double-throat family: morph controls separation and flare
+        const mu = SPACETIME_MODE.morph; // 0..1
+        const Lmin = 8.0;
+        const Lmax = 24.0;
+        const L = Lmin + mu * (Lmax - Lmin);
+        SPACETIME_MODE.doubleSeparation = L;
+        const L2 = L * L;
+
+        const blend = 0.25 + 0.75 * mu;
+        const core = (l2 - L2) * (l2 - L2);
+        const flare = 0.2 * r0 * r0 * L2 * (1.0 + 0.8 * mu);
+        const num = core + flare;
+        const den = l2 + L2 + 1e-6;
+        const r2 = r0 * r0 + blend * num / den;
+        return Math.sqrt(r2);
+    } else if (SPACETIME_MODE.topology === "flared") {
+        // Flared Morris–Thorne-like family: extra widening near throat
+        const mu = SPACETIME_MODE.morph;
+        const alpha = 0.18 + 0.6 * mu;
+        const base = l2 + r0 * r0;
+        const flare = alpha * (l2 * l2) / (l2 + r0 * r0 + 1e-6);
+        return Math.sqrt(base + flare);
+    } else if (SPACETIME_MODE.topology === "long_flue") {
+        // Long nearly cylindrical throat region that relaxes to asymptotic
+        const mu = SPACETIME_MODE.morph;
+        const L = 6.0 + 10.0 * mu;
+        const base = Math.sqrt(l2 + r0 * r0);
+        const flue = r0 * (1.0 + 0.8 * mu);
+        const s = Math.exp(- (l2) / (L * L + 1e-6));
+        return s * flue + (1.0 - s) * base;
+    } else if (SPACETIME_MODE.topology === "thin_shell") {
+        // Thin-shell Visser-type: nearly flat region with sharp transition
+        const mu = SPACETIME_MODE.morph;
+        const L = 4.0 + 6.0 * mu;
+        const absL = Math.abs(l);
+        const r0sq = r0 * r0;
+        let r;
+        if (absL < L) {
+            const t = absL / Math.max(1e-3, L);
+            r = r0 * (1.0 + 0.4 * t * t);
+        } else {
+            const excess = absL - L;
+            const Leff = L + excess;
+            r = Math.sqrt(Leff * Leff + r0sq);
+        }
+        return r;
+    }
+
+    // Fallback
+    return Math.sqrt(l2 + r0 * r0);
+}
+
+
+// ===== GEODESIC INTEGRATOR (4D) =====
+class GeodesicIntegrator {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.state = {
+            l: 30.0,
+            dl: 0.0,
+            theta: Math.PI / 2,
+            dtheta: 0.0,
+            phi: 0.0,
+            dphi: 0.0,
+            tau: 0.0,
+            t: 0.0
+        };
+        this.params = {
+            E: 1.2,
+            Lphi: 0.5,
+            theta0Deg: 90.0,
+            thetaVel: 0.0,
+            r0: CONFIG.r0,
+            mode: "massive"
+        };
+        this.active = false;
+
+        this.tidal = {
+            K: 0.0,
+            lambdaR: 0.0,
+            lambdaT: 0.0
+        };
+        this.jacobi = {
+            xiR: 1.0,
+            vXiR: 0.0,
+            xiT: 1.0,
+            vXiT: 0.0,
+            xi0R: 1.0,
+            xi0T: 1.0,
+            areaPrev: 1.0,
+            thetaExp: 0.0,
+            sigmaMag: 0.0
+        };
+    }
+
+    rOfL(l) {
+        return radiusFromTopology(l, this.params.r0);
+    }
+
+    // Christoffels for metric ds² = -dt² + dl² + r(l)²(dθ² + sin²θ dφ²)
+    getChristoffel(l, theta) {
+        const r = this.rOfL(l);
+        const r2 = r * r;
+        const drdl = (r > 1e-6) ? (l / r) : 0.0;
+
+        const Gamma_l_thetatheta = -r * drdl;              // Γ^l_{θθ}
+        const Gamma_l_phiphi     = -r * drdl * Math.sin(theta) * Math.sin(theta); // Γ^l_{φφ}
+
+        const Gamma_theta_ltheta = drdl / r;               // Γ^θ_{lθ} = Γ^θ_{θl}
+        const Gamma_phi_lphi     = drdl / r;               // Γ^φ_{lφ} = Γ^φ_{φl}
+
+        const Gamma_theta_phiphi = -Math.sin(theta) * Math.cos(theta); // Γ^θ_{φφ}
+        const Gamma_phi_thetaphi = (Math.abs(Math.sin(theta)) < 1e-6)
+            ? 0.0
+            : Math.cos(theta) / Math.sin(theta);           // Γ^φ_{θφ} = Γ^φ_{φθ} = cotθ
+
+        return {
+            Gamma_l_thetatheta,
+            Gamma_l_phiphi,
+            Gamma_theta_ltheta,
+            Gamma_phi_lphi,
+            Gamma_theta_phiphi,
+            Gamma_phi_thetaphi
+        };
+    }
+
+    getDerivatives(s) {
+        const G = this.getChristoffel(s.l, s.theta);
+
+        const dl = s.dl;
+        const dtheta = s.dtheta;
+        const dphi = s.dphi;
+
+        const d2l = -(
+            G.Gamma_l_thetatheta * dtheta * dtheta +
+            G.Gamma_l_phiphi * dphi * dphi
+        );
+
+        const d2theta = -2.0 * G.Gamma_theta_ltheta * dl * dtheta
+                        - G.Gamma_theta_phiphi * dphi * dphi;
+
+        const d2phi = -2.0 * G.Gamma_phi_lphi * dl * dphi
+                      -2.0 * G.Gamma_phi_thetaphi * dtheta * dphi;
+
+        return {
+            dl,
+            dtheta,
+            dphi,
+            d2l,
+            d2theta,
+            d2phi
+        };
+    }
+
+    initializeVelocities() {
+        const s = this.state;
+        const p = this.params;
+
+        s.theta = p.theta0Deg * Math.PI / 180.0;
+        s.dtheta = p.thetaVel;
+
+        const r = this.rOfL(s.l);
+        const sinTheta = Math.sin(s.theta);
+        const sin2 = sinTheta * sinTheta;
+
+        if (r < 1e-6 || sin2 < 1e-6) {
+            return false;
+        }
+
+        // Azimuthal component from Lphi integral of motion
+        s.dphi = p.Lphi / (r * r * sin2);
+
+        const base = (p.mode === "photon") ? 0.0 : 1.0;
+
+        // Norm condition: -1 = -E² + dl² + r² dθ² + r² sin²θ dφ²  (timelike)
+        // or 0 = -E² + ... (null). Solve for dl².
+        const angTerm = r * r * (s.dtheta * s.dtheta + sin2 * s.dphi * s.dphi);
+        let rhs = p.E * p.E - base - angTerm;
+
+        if (p.mode === "photon") {
+            rhs = p.E * p.E - angTerm;
+        }
+
+        if (rhs <= 0.0 || !isFinite(rhs)) {
+            return false;
+        }
+        s.dl = -Math.sqrt(rhs);
+        return true;
+    }
+
+    step(dt) {
+        if (!this.active) return;
+
+        const s = this.state;
+
+        const d1 = this.getDerivatives(s);
+        const k1_l = d1.dl;
+        const k1_dl = d1.d2l;
+        const k1_theta = d1.dtheta;
+        const k1_dtheta = d1.d2theta;
+        const k1_phi = d1.dphi;
+        const k1_dphi = d1.d2phi;
+
+        const s2 = {
+            l: s.l + 0.5 * dt * k1_l,
+            dl: s.dl + 0.5 * dt * k1_dl,
+            theta: s.theta + 0.5 * dt * k1_theta,
+            dtheta: s.dtheta + 0.5 * dt * k1_dtheta,
+            phi: s.phi + 0.5 * dt * k1_phi,
+            dphi: s.dphi + 0.5 * dt * k1_dphi
+        };
+        const d2 = this.getDerivatives(s2);
+        const k2_l = d2.dl;
+        const k2_dl = d2.d2l;
+        const k2_theta = d2.dtheta;
+        const k2_dtheta = d2.d2theta;
+        const k2_phi = d2.dphi;
+        const k2_dphi = d2.d2phi;
+
+        const s3 = {
+            l: s.l + 0.5 * dt * k2_l,
+            dl: s.dl + 0.5 * dt * k2_dl,
+            theta: s.theta + 0.5 * dt * k2_theta,
+            dtheta: s.dtheta + 0.5 * dt * k2_dtheta,
+            phi: s.phi + 0.5 * dt * k2_phi,
+            dphi: s.dphi + 0.5 * dt * k2_dphi
+        };
+        const d3 = this.getDerivatives(s3);
+        const k3_l = d3.dl;
+        const k3_dl = d3.d2l;
+        const k3_theta = d3.dtheta;
+        const k3_dtheta = d3.d2theta;
+        const k3_phi = d3.dphi;
+        const k3_dphi = d3.d2phi;
+
+        const s4 = {
+            l: s.l + dt * k3_l,
+            dl: s.dl + dt * k3_dl,
+            theta: s.theta + dt * k3_theta,
+            dtheta: s.dtheta + dt * k3_dtheta,
+            phi: s.phi + dt * k3_phi,
+            dphi: s.dphi + dt * k3_dphi
+        };
+        const d4 = this.getDerivatives(s4);
+        const k4_l = d4.dl;
+        const k4_dl = d4.d2l;
+        const k4_theta = d4.dtheta;
+        const k4_dtheta = d4.d2theta;
+        const k4_phi = d4.dphi;
+        const k4_dphi = d4.d2phi;
+
+        s.l += (dt / 6.0) * (k1_l + 2 * k2_l + 2 * k3_l + k4_l);
+        s.dl += (dt / 6.0) * (k1_dl + 2 * k2_dl + 2 * k3_dl + k4_dl);
+        s.theta += (dt / 6.0) * (k1_theta + 2 * k2_theta + 2 * k3_theta + k4_theta);
+        s.dtheta += (dt / 6.0) * (k1_dtheta + 2 * k2_dtheta + 2 * k3_dtheta + k4_dtheta);
+        s.phi += (dt / 6.0) * (k1_phi + 2 * k2_phi + 2 * k3_phi + k4_phi);
+        s.dphi += (dt / 6.0) * (k1_dphi + 2 * k2_dphi + 2 * k3_dphi + k4_dphi);
+
+        // keep theta in [0,pi] for stability
+        if (s.theta < 0) s.theta = -s.theta;
+        if (s.theta > Math.PI) s.theta = Math.PI - (s.theta - Math.PI);
+
+        s.tau += dt;
+        s.t += this.params.E * dt;
+
+        // Effective curvature along path
+        const r = this.rOfL(s.l);
+        const r2 = r * r;
+        const r0 = this.params.r0;
+        const K = - (r0 * r0) / (Math.pow(r2 + 1e-6, 2)); // negative near throat
+
+        const absK = Math.abs(K);
+        const lambdaR = 2.0 * absK * CONFIG.tidalScale;
+        const lambdaT = -1.0 * absK * CONFIG.tidalScale;
+
+        this.tidal.K = K;
+        this.tidal.lambdaR = lambdaR;
+        this.tidal.lambdaT = lambdaT;
+
+        // Jacobi evolution (bundle in 2D)
+        const j = this.jacobi;
+        const maxStretch = 80.0;
+
+        const d2_xiR = lambdaR * j.xiR;
+        const xiR1 = j.vXiR;
+        const vR1 = d2_xiR;
+        const xiR2 = j.vXiR + 0.5 * dt * vR1;
+        const vR2 = lambdaR * (j.xiR + 0.5 * dt * xiR1);
+        const xiR3 = j.vXiR + 0.5 * dt * vR2;
+        const vR3 = lambdaR * (j.xiR + 0.5 * dt * xiR2);
+        const xiR4 = j.vXiR + dt * vR3;
+        const vR4 = lambdaR * (j.xiR + dt * xiR3);
+        j.xiR += (dt / 6.0) * (xiR1 + 2 * xiR2 + 2 * xiR3 + xiR4);
+        j.vXiR += (dt / 6.0) * (vR1 + 2 * vR2 + 2 * vR3 + vR4);
+
+        const d2_xiT = lambdaT * j.xiT;
+        const xiT1 = j.vXiT;
+        const vT1 = d2_xiT;
+        const xiT2 = j.vXiT + 0.5 * dt * vT1;
+        const vT2 = lambdaT * (j.xiT + 0.5 * dt * xiT1);
+        const xiT3 = j.vXiT + 0.5 * dt * vT2;
+        const vT3 = lambdaT * (j.xiT + 0.5 * dt * xiT2);
+        const xiT4 = j.vXiT + dt * vT3;
+        const vT4 = lambdaT * (j.xiT + dt * xiT3);
+        j.xiT += (dt / 6.0) * (xiT1 + 2 * xiT2 + 2 * xiT3 + xiT4);
+        j.vXiT += (dt / 6.0) * (vT1 + 2 * vT2 + 2 * vT3 + vT4);
+
+        j.xiR = Math.max(-maxStretch, Math.min(maxStretch, j.xiR));
+        j.xiT = Math.max(-maxStretch, Math.min(maxStretch, j.xiT));
+
+        // Bundle expansion θ and shear σ diagnostics from Jacobi fields
+        const area = Math.max(1e-6, Math.abs(j.xiR * j.xiT));
+        const thetaExp = (1.0 / (dt + 1e-6)) * Math.log(area / j.areaPrev);
+        j.areaPrev = area;
+        j.thetaExp = thetaExp;
+        j.sigmaMag = Math.abs(this.tidal.lambdaR - this.tidal.lambdaT);
+
+        if (Math.abs(s.l) > CONFIG.tunnelLength + 12) {
+            this.active = false;
+            showNotification("TRAVERSAL COMPLETE");
+            controls.enabled = true;
+        }
+    }
+}
+
+// ===== THREE.JS SCENE =====
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, 0.012);
+let cameraForward = new THREE.Vector3(0, 0, -1);
+let currentBeta = 0.0;
+
+const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1200);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+
+// ===== WORMHOLE GEOMETRY =====
+function createWormholeGeometry(r0) {
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const uvs = [];
+    const indices = [];
+
+    const segments = CONFIG.gridSegments;
+    const rings = CONFIG.gridRings;
+    const limit = CONFIG.tunnelLength;
+
+    for (let i = 0; i <= rings; i++) {
+        const l = -limit + (i / rings) * (2 * limit);
+        const radius = radiusFromTopology(l, r0);
+        for (let j = 0; j <= segments; j++) {
+            const angle = (j / segments) * Math.PI * 2;
+            const x = radius * Math.cos(angle);
+            const y = radius * Math.sin(angle);
+            const z = l;
+            vertices.push(x, y, z);
+            uvs.push(j / segments, i / rings);
+        }
+    }
+
+    for (let i = 0; i < rings; i++) {
+        for (let j = 0; j < segments; j++) {
+            const a = i * (segments + 1) + j;
+            const b = a + segments + 1;
+            const c = a + 1;
+            const d = b + 1;
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
+const wormholeMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        time: { value: 0 },
+        colorA: { value: new THREE.Color(0x53bba5) },
+        colorB: { value: new THREE.Color(0xd946ef) },
+        gridDensity: { value: 22.0 },
+        timeDilation: { value: 1.0 },
+        curvStrength: { value: 0.0 }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vPos;
+        varying vec3 vNormal;
+        void main() {
+            vUv = uv;
+            vPos = position;
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float time;
+        uniform vec3 colorA;
+        uniform vec3 colorB;
+        uniform float gridDensity;
+        uniform float timeDilation;
+        uniform float curvStrength;
+        varying vec2 vUv;
+        varying vec3 vPos;
+        varying vec3 vNormal;
+
+        void main() {
+            float gridX = step(0.96, fract(vUv.x * gridDensity));
+            float gridY = step(0.96, fract(vUv.y * 70.0 - time * 0.45 * clamp(timeDilation, 0.25, 4.0)));
+            float grid = max(gridX, gridY);
+
+            vec3 viewDir = normalize(cameraPosition - vPos);
+            float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 4.0);
+
+            float depth = 1.0 / (1.0 + abs(vPos.z) * 0.06);
+            vec3 base = mix(colorA, colorB, depth);
+
+            float curv = clamp(curvStrength, 0.0, 1.0);
+            float dil = clamp(timeDilation, 0.25, 4.0);
+
+            vec3 curvTint = mix(colorA, colorB, curv);
+            vec3 glow = base * (1.2 * grid + 0.4 + fresnel * 1.3);
+            vec3 relativistic = mix(glow, curvTint * dil, 0.35 * curv);
+
+            float alpha = smoothstep(65.0, 40.0, abs(vPos.z));
+            gl_FragColor = vec4(relativistic, alpha * 0.95);
+        }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+});
+
+let wormholeMesh = new THREE.Mesh(createWormholeGeometry(CONFIG.r0), wormholeMaterial);
+scene.add(wormholeMesh);
+
+// ===== STARFIELDS + RAY BUNDLE LENSING =====
+function createStarfield(color, zOffset, count) {
+    const geom = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const seed = new Float32Array(count * 2); // impact-parameter directions
+
+    for (let i = 0; i < count; i++) {
+        const r = 40 + Math.random() * 260;
+        const theta = Math.random() * Math.PI * 2;
+        const x = r * Math.cos(theta);
+        const y = r * Math.sin(theta);
+        const z = zOffset + (Math.random() - 0.5) * 180;
+        pos[3 * i] = x;
+        pos[3 * i + 1] = y;
+        pos[3 * i + 2] = z;
+
+        const u = Math.cos(theta);
+        const v = Math.sin(theta);
+        seed[2 * i] = u;
+        seed[2 * i + 1] = v;
+    }
+
+    geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geom.setAttribute('seed', new THREE.BufferAttribute(seed, 2));
+
+    const mat = new THREE.PointsMaterial({
+        color: color,
+        size: 0.9,
+        transparent: true,
+        opacity: 0.85
+    });
+    return { points: new THREE.Points(geom, mat), basePositions: pos.slice() };
+}
+
+const starsAData = createStarfield(0xaaffff, CONFIG.tunnelLength + 25, CONFIG.starCount);
+const starsBData = createStarfield(0xffaaff, -CONFIG.tunnelLength - 25, CONFIG.starCount);
+const starsA = starsAData.points;
+const starsB = starsBData.points;
+scene.add(starsA);
+scene.add(starsB);
+
+function resetStarfield(data, points) {
+    const pos = points.geometry.attributes.position.array;
+    pos.set(data.basePositions);
+    points.geometry.attributes.position.needsUpdate = true;
+}
+
+function resetStarfields() {
+    resetStarfield(starsAData, starsA);
+    resetStarfield(starsBData, starsB);
+}
+
+function applyRayBundleLensing(lVal, geodesic, jacobi) {
+    const intensity = CONFIG.bundleIntensity;
+    const distanceFactor = Math.exp(-Math.abs(lVal) / 32.0);
+    const rHere = radiusFromTopology(lVal, CONFIG.r0);
+    const pot = -(CONFIG.r0 * CONFIG.r0) / (2.0 * (rHere * rHere + 1e-6));
+    const gravFactor = 1.0 / Math.sqrt(Math.max(0.1, 1.0 + 2.0 * pot));
+
+    const sinTheta = Math.sin(geodesic.theta);
+    const v_l = geodesic.dl;
+    const v_theta = rHere * geodesic.dtheta;
+    const v_phi = rHere * sinTheta * geodesic.dphi;
+    const E = Math.max(physics.params.E, 1e-3);
+    let v2 = (v_l * v_l + v_theta * v_theta + v_phi * v_phi) / (E * E + 1e-6);
+    v2 = Math.max(0.0, Math.min(0.99, v2));
+    const betaMag = Math.sqrt(v2);
+    const betaSign = (geodesic.dl <= 0 ? -1.0 : 1.0);
+    const betaLocal = betaSign * betaMag;
+    const gammaSR = 1.0 / Math.sqrt(1.0 - betaMag * betaMag);
+    const gammaEffLocal = gravFactor * gammaSR;
+    if (distanceFactor < 1e-3) {
+        resetStarfields();
+        return;
+    }
+    const stretchR = Math.abs(jacobi.xiR / jacobi.xi0R);
+    const stretchT = Math.abs(jacobi.xiT / jacobi.xi0T);
+    const shearAmp = Math.min(3.0, 0.3 * (stretchR + stretchT)) * (0.5 + intensity);
+
+    function lensOneCloud(data, points, sideSign) {
+        const pos = points.geometry.attributes.position.array;
+        const base = data.basePositions;
+        const count = base.length / 3;
+
+        for (let i = 0; i < count; i++) {
+            const bx = base[3 * i];
+            const by = base[3 * i + 1];
+            const bz = base[3 * i + 2];
+
+            const rXY = Math.sqrt(bx * bx + by * by) + 1e-4;
+            const bImpact = rXY;
+
+            const u = bx / rXY;
+            const v = by / rXY;
+
+            let alpha = 0.25 * Math.PI * (CONFIG.r0 * CONFIG.r0) / (bImpact * bImpact);
+            alpha *= distanceFactor * intensity;
+
+            const maxAlpha = 0.5 * Math.PI;
+            if (alpha > maxAlpha) alpha = maxAlpha;
+
+            const shearX = shearAmp * u;
+            const shearY = shearAmp * v;
+
+            const deflect = sideSign * alpha;
+
+            const cosD = Math.cos(deflect);
+            const sinD = Math.sin(deflect);
+            let nx = bx * cosD - by * sinD;
+            let ny = bx * sinD + by * cosD;
+
+            const causticFactor = 1.0 + 0.8 * distanceFactor * (stretchR + 0.3 * stretchT);
+            nx += shearX * causticFactor;
+            ny += shearY * causticFactor;
+
+            // simple aberration along current camera forward direction
+            const aberration = currentBeta * 0.6;
+            const fx = cameraForward.x;
+            const fy = cameraForward.y;
+            const fz = cameraForward.z;
+            const dotF = (bx * fx + by * fy + bz * fz);
+            const ax = aberration * dotF * fx;
+            const ay = aberration * dotF * fy;
+            const az = aberration * dotF * fz;
+
+            pos[3 * i] = nx + ax;
+            pos[3 * i + 1] = ny + ay;
+            pos[3 * i + 2] = bz + az;
+        }
+        points.geometry.attributes.position.needsUpdate = true;
+    }
+
+    const signA = (geodesic.l >= 0.0) ? +1.0 : -1.0;
+    const signB = -signA;
+    lensOneCloud(starsAData, starsA, signA);
+    lensOneCloud(starsBData, starsB, signB);
+
+    const infall = -geodesic.dl;
+    const beta = Math.max(-0.9, Math.min(0.9, infall * 0.25));
+
+    const coldBase = new THREE.Color(0xaaffff).lerp(new THREE.Color(0x99ccff), Math.max(0.0, beta));
+    const warmBase = new THREE.Color(0xffaaff).lerp(new THREE.Color(0xff6666), Math.max(0.0, -beta));
+
+    const blueShift = Math.min(2.0, gammaEffLocal);
+    const redShift = 1.0 / Math.max(0.5, gammaEffLocal);
+
+    const coldA = coldBase.multiplyScalar(blueShift);
+    const warmB = warmBase.multiplyScalar(redShift);
+
+    starsA.material.color.copy(coldA);
+    starsB.material.color.copy(warmB);
+}
+
+// ===== LIGHTS =====
+const lightA = new THREE.PointLight(0x53bba5, 2.2, 240);
+lightA.position.set(0, 0, CONFIG.tunnelLength);
+scene.add(lightA);
+
+const lightB = new THREE.PointLight(0xd946ef, 2.2, 240);
+lightB.position.set(0, 0, -CONFIG.tunnelLength);
+scene.add(lightB);
+
+// ===== SYSTEM STATE & UI HOOKS =====
+const physics = new GeodesicIntegrator();
+let isTraversing = false;
+
+const ui = {
+    r0: document.getElementById("input-r0"),
+    r0Val: document.getElementById("val-r0"),
+    energy: document.getElementById("input-energy"),
+    energyVal: document.getElementById("val-energy"),
+    ang: document.getElementById("input-ang"),
+    angVal: document.getElementById("val-ang"),
+    theta0: document.getElementById("input-theta0"),
+    theta0Val: document.getElementById("val-theta0"),
+    thetaVel: document.getElementById("input-thetaVel"),
+    thetaVelVal: document.getElementById("val-thetaVel"),
+    modeSelect: document.getElementById("mode-select"),
+    topologySelect: document.getElementById("topology-select"),
+    topoMorph: document.getElementById("input-topomorph"),
+    topoMorphVal: document.getElementById("val-topomorph"),
+    toggleWormhole: document.getElementById("toggle-wormhole"),
+    toggleStars: document.getElementById("toggle-stars"),
+    toggleHUD: document.getElementById("toggle-hud"),
+    btnStart: document.getElementById("btn-start"),
+    btnReset: document.getElementById("btn-reset"),
+    l: document.getElementById("tel-l"),
+    r: document.getElementById("tel-r"),
+    theta: document.getElementById("tel-theta"),
+    phi: document.getElementById("tel-phi"),
+    vrad: document.getElementById("tel-vrad"),
+    vtheta: document.getElementById("tel-vtheta"),
+    vphi: document.getElementById("tel-vphi"),
+    tau: document.getElementById("tel-tau"),
+    t: document.getElementById("tel-t"),
+    gammaEff: document.getElementById("tel-gamma"),
+    K: document.getElementById("tel-k"),
+    lamR: document.getElementById("tel-lamr"),
+    lamT: document.getElementById("tel-lamt"),
+    xiR: document.getElementById("tel-xir"),
+    xiT: document.getElementById("tel-xit"),
+    expansion: document.getElementById("tel-expansion"),
+    shear: document.getElementById("tel-shear"),
+    statusIndicator: document.getElementById("status-indicator"),
+    statusText: document.getElementById("status-text"),
+    rho: document.getElementById("val-rho"),
+    pr: document.getElementById("val-pr"),
+    pt: document.getElementById("val-pt"),
+    nec: document.getElementById("val-nec"),
+    wec: document.getElementById("val-wec"),
+    sec: document.getElementById("val-sec"),
+    dec: document.getElementById("val-dec"),
+    badgeExotic: document.getElementById("badge-exotic"),
+    badgeNormal: document.getElementById("badge-normal"),
+    badgeTidalSafe: document.getElementById("badge-tidal-safe"),
+    badgeTidalWarning: document.getElementById("badge-tidal-warning"),
+    badgeTidalFatal: document.getElementById("badge-tidal-fatal"),
+    notif: document.getElementById("notification"),
+    bundleIntensity: document.getElementById("input-bundle-intensity"),
+    bundleIntensityVal: document.getElementById("val-bundle-intensity"),
+    petrovType: document.getElementById("petrov-type"),
+    eigenLr: document.getElementById("eigen-lr"),
+    eigenLt: document.getElementById("eigen-lt"),
+    bundleCount: document.getElementById("bundle-count"),
+    spectrumCanvas: document.getElementById("spectrum-canvas")
+};
+
+const hudContainer = document.getElementById("hud-container");
+function initPanelToggles() {
+    const panels = document.querySelectorAll('.hud-panel');
+    panels.forEach((panel) => {
+        const header = panel.querySelector('h1, h2');
+        if (!header) return;
+
+        const body = document.createElement('div');
+        body.className = 'hud-panel-body';
+
+        let node = header.nextSibling;
+        while (node) {
+            const next = node.nextSibling;
+            body.appendChild(node);
+            node = next;
+        }
+        panel.appendChild(body);
+
+        const toggle = document.createElement('button');
+        toggle.className = 'glass-toggle glass-on';
+        toggle.textContent = 'PANEL: ON';
+
+        toggle.addEventListener('click', () => {
+            const hidden = body.classList.toggle('hud-panel-hidden');
+            if (hidden) {
+                toggle.classList.remove('glass-on');
+                toggle.classList.add('glass-off');
+                toggle.textContent = 'PANEL: OFF';
+            } else {
+                toggle.classList.remove('glass-off');
+                toggle.classList.add('glass-on');
+                toggle.textContent = 'PANEL: ON';
+            }
+        });
+
+        header.appendChild(toggle);
+    });
+}
+
+const hudMenuToggle = document.getElementById("hud-menu-toggle");
+let hudVisible = true;
+
+function setHUDVisible(visible) {
+    hudVisible = visible;
+    hudContainer.style.display = visible ? "flex" : "none";
+    hudMenuToggle.textContent = visible ? "HUD: ON" : "HUD: OFF";
+    ui.toggleHUD.checked = visible;
+}
+
+hudMenuToggle.addEventListener("click", () => {
+    setHUDVisible(!hudVisible);
+});
+
+ui.toggleHUD.addEventListener("change", (e) => {
+    setHUDVisible(e.target.checked);
+});
+
+ui.r0.addEventListener("input", (e) => {
+    CONFIG.r0 = parseFloat(e.target.value);
+    physics.params.r0 = CONFIG.r0;
+    ui.r0Val.textContent = CONFIG.r0.toFixed(1);
+    scene.remove(wormholeMesh);
+    wormholeMesh.geometry.dispose();
+    wormholeMesh = new THREE.Mesh(createWormholeGeometry(CONFIG.r0), wormholeMaterial);
+    scene.add(wormholeMesh);
+});
+
+ui.energy.addEventListener("input", (e) => {
+    physics.params.E = parseFloat(e.target.value);
+    ui.energyVal.textContent = physics.params.E.toFixed(2);
+});
+
+ui.ang.addEventListener("input", (e) => {
+    physics.params.Lphi = parseFloat(e.target.value);
+    ui.angVal.textContent = physics.params.Lphi.toFixed(1);
+});
+
+ui.theta0.addEventListener("input", (e) => {
+    physics.params.theta0Deg = parseFloat(e.target.value);
+    ui.theta0Val.textContent = physics.params.theta0Deg.toFixed(0);
+});
+
+ui.thetaVel.addEventListener("input", (e) => {
+    physics.params.thetaVel = parseFloat(e.target.value);
+    ui.thetaVelVal.textContent = physics.params.thetaVel.toFixed(2);
+});
+
+ui.modeSelect.addEventListener("change", (e) => {
+    physics.params.mode = e.target.value;
+});
+
+ui.topologySelect.addEventListener("change", (e) => {
+    SPACETIME_MODE.topology = e.target.value;
+    scene.remove(wormholeMesh);
+    wormholeMesh.geometry.dispose();
+    wormholeMesh = new THREE.Mesh(createWormholeGeometry(CONFIG.r0), wormholeMaterial);
+    scene.add(wormholeMesh);
+});
+
+ui.topoMorph.addEventListener("input", (e) => {
+    const mu = parseFloat(e.target.value);
+    SPACETIME_MODE.morph = mu;
+    ui.topoMorphVal.textContent = mu.toFixed(2);
+    if (SPACETIME_MODE.topology !== "single") {
+        scene.remove(wormholeMesh);
+        wormholeMesh.geometry.dispose();
+        wormholeMesh = new THREE.Mesh(createWormholeGeometry(CONFIG.r0), wormholeMaterial);
+        scene.add(wormholeMesh);
+    }
+});
+
+ui.bundleIntensity.addEventListener("input", (e) => {
+    const v = parseFloat(e.target.value);
+    CONFIG.bundleIntensity = v;
+    if (ui.bundleIntensityVal) {
+        ui.bundleIntensityVal.textContent = v.toFixed(2);
+    }
+});
+
+
+ui.toggleWormhole.addEventListener("change", (e) => {
+    wormholeMesh.visible = e.target.checked;
+});
+
+ui.toggleStars.addEventListener("change", (e) => {
+    starsA.visible = e.target.checked;
+    starsB.visible = e.target.checked;
+});
+
+ui.btnStart.addEventListener("click", () => {
+    physics.reset();
+    physics.params.r0 = CONFIG.r0;
+    physics.params.E = parseFloat(ui.energy.value);
+    physics.params.Lphi = parseFloat(ui.ang.value);
+    physics.params.theta0Deg = parseFloat(ui.theta0.value);
+    physics.params.thetaVel = parseFloat(ui.thetaVel.value);
+
+    if (!physics.initializeVelocities()) {
+        showNotification("UNPHYSICAL (E, Lᵩ, θ)");
+        return;
+    }
+    physics.active = true;
+    isTraversing = true;
+    ui.statusIndicator.classList.add("active");
+    ui.statusText.textContent = "GEODESIC ACTIVE — τ EVOLVING";
+    controls.enabled = false;
+});
+
+ui.btnReset.addEventListener("click", () => {
+    physics.active = false;
+    isTraversing = false;
+    physics.reset();
+    resetStarfields();
+    camera.position.set(32, 22, 32);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+    controls.enabled = true;
+    ui.statusIndicator.classList.remove("active");
+    ui.statusText.textContent = "IDLE — Waiting for trajectory";
+});
+
+function showNotification(text) {
+    ui.notif.textContent = text;
+    ui.notif.style.opacity = 1;
+    setTimeout(() => {
+        ui.notif.style.opacity = 0;
+    }, 2600);
+}
+
+// ===== SPECTRUM & PETROV HELPERS =====
+let spectrumCtx = null;
+
+function initSpectrumCanvas() {
+    if (!ui.spectrumCanvas) return;
+    spectrumCtx = ui.spectrumCanvas.getContext("2d");
+}
+
+function drawSpectrum(gammaEff) {
+    if (!spectrumCtx || !ui.spectrumCanvas) return;
+    const canvas = ui.spectrumCanvas;
+    const ctx = spectrumCtx;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const grad = ctx.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0.0, "#440088");
+    grad.addColorStop(0.25, "#0044ff");
+    grad.addColorStop(0.5, "#00ffaa");
+    grad.addColorStop(0.75, "#ffff00");
+    grad.addColorStop(1.0, "#ff0000");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = "rgba(15,23,42,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, h - 8);
+    ctx.lineTo(w, h - 8);
+    ctx.stroke();
+
+    const g = (isFinite(gammaEff) ? gammaEff : 1.0);
+    const zRaw = g - 1.0;
+    const z = Math.max(-0.5, Math.min(4.0, zRaw));
+
+    const restPos = 0.62 * w;
+    const shiftedPos = restPos * (1.0 + z * 0.17);
+    const xLine = Math.max(0.05 * w, Math.min(0.95 * w, shiftedPos));
+
+    ctx.strokeStyle = "#f9fafb";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(xLine, 6);
+    ctx.lineTo(xLine, h - 6);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(xLine, h - 10, 3, 0, Math.PI * 2.0);
+    ctx.fill();
+}
+
+function updatePetrovAndSpectrum(tidal, gammaEff) {
+    if (!ui.petrovType) return;
+
+    const lr = tidal.lambdaR;
+    const lt = tidal.lambdaT;
+
+    ui.eigenLr.textContent = (isFinite(lr) ? lr.toExponential(2) : "nan");
+    ui.eigenLt.textContent = (isFinite(lt) ? lt.toExponential(2) : "nan");
+
+    const scale = Math.max(Math.abs(lr), Math.abs(lt));
+    const eps = scale * 0.05 + 1e-9;
+    let pType = "I";
+
+    if (Math.abs(lr - lt) < eps) {
+        pType = "D";
+    } else if (Math.abs(lt) < eps) {
+        pType = "N";
+    }
+
+    ui.petrovType.textContent = pType;
+
+    const effectiveRays = Math.max(1, Math.round(CONFIG.starCount * 2 * CONFIG.bundleIntensity));
+    if (ui.bundleCount) {
+        ui.bundleCount.textContent = "≈ " + effectiveRays.toLocaleString();
+    }
+
+    drawSpectrum(gammaEff);
+}
+
+// ===== TIDAL RING IN CAMERA FRAME =====
+
+const tidalRingGeom = new THREE.TorusGeometry(0.65, 0.025, 16, 64);
+const tidalRingMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.7
+});
+const tidalRing = new THREE.Mesh(tidalRingGeom, tidalRingMat);
+tidalRing.position.set(0, 0, -2.0);
+camera.add(tidalRing);
+scene.add(camera);
+
+// ===== MAIN LOOP =====
+const clock = new THREE.Clock();
+
+function updateEnergyDiagnostics(lVal, r0, K, gammaEff) {
+    const r = radiusFromTopology(lVal, r0);
+    const r2 = r * r;
+    const denom = Math.pow(r2 + 1e-6, 2);
+    const rhoEff = -r0 * r0 / (8.0 * Math.PI * denom);
+    const prEff = -rhoEff * 0.5;
+    const ptEff = rhoEff * 0.25;
+
+    const necVal = rhoEff + prEff;
+    const wecVal = rhoEff;
+    const secVal = rhoEff + prEff + 2.0 * ptEff;
+
+    const decOK = (Math.abs(rhoEff) >= Math.max(Math.abs(prEff), Math.abs(ptEff)));
+
+    function fmt(x) {
+        return (isFinite(x)) ? x.toExponential(2) : "nan";
+    }
+
+    ui.rho.textContent = fmt(rhoEff);
+    ui.pr.textContent = fmt(prEff);
+    ui.pt.textContent = fmt(ptEff);
+    ui.nec.textContent = fmt(necVal);
+    ui.wec.textContent = fmt(wecVal);
+    ui.sec.textContent = fmt(secVal);
+    ui.dec.textContent = decOK ? "YES" : "NO";
+    if (gammaEff !== undefined && ui.gammaEff) {
+        ui.gammaEff.textContent = (isFinite(gammaEff) ? gammaEff.toFixed(3) : "nan");
+    }
+
+    ui.rho.className = "energy-value " + (rhoEff < 0 ? "critical" : "good");
+    ui.pr.className = "energy-value " + (prEff < 0 ? "bad" : "good");
+    ui.pt.className = "energy-value " + (ptEff < 0 ? "bad" : "good");
+    ui.nec.className = "energy-value " + (necVal < 0 ? "critical" : "good");
+    ui.wec.className = "energy-value " + (wecVal < 0 ? "critical" : "good");
+    ui.sec.className = "energy-value " + (secVal < 0 ? "critical" : "good");
+
+    const exotic = (necVal < 0 || wecVal < 0);
+    ui.badgeExotic.style.opacity = exotic ? "1" : "0.25";
+    ui.badgeNormal.style.opacity = exotic ? "0.25" : "1";
+}
+
+function updateTidalBadges(jacobi) {
+    const stretchR = Math.abs(jacobi.xiR / jacobi.xi0R);
+    const stretchT = Math.abs(jacobi.xiT / jacobi.xi0T);
+    const mag = Math.max(stretchR, stretchT);
+
+    ui.badgeTidalSafe.style.opacity = "0.25";
+    ui.badgeTidalWarning.style.opacity = "0.25";
+    ui.badgeTidalFatal.style.opacity = "0.25";
+
+    if (mag < 3.0) {
+        ui.badgeTidalSafe.style.opacity = "1";
+    } else if (mag < 10.0) {
+        ui.badgeTidalWarning.style.opacity = "1";
+    } else {
+        ui.badgeTidalFatal.style.opacity = "1";
+    }
+
+    const clampedR = Math.max(0.3, Math.min(4.0, stretchR));
+    const clampedT = Math.max(0.3, Math.min(4.0, stretchT));
+    tidalRing.scale.set(clampedT, clampedR, 1.0);
+
+    if (ui.expansion) {
+        ui.expansion.textContent = (isFinite(jacobi.thetaExp) ? jacobi.thetaExp.toFixed(3) : "nan");
+    }
+    if (ui.shear) {
+        ui.shear.textContent = (isFinite(jacobi.sigmaMag) ? jacobi.sigmaMag.toExponential(2) : "nan");
+    }
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    const time = clock.getElapsedTime();
+
+    wormholeMaterial.uniforms.time.value = time;
+
+    if (physics.active) {
+        physics.step(CONFIG.physicsStep);
+        const s = physics.state;
+
+        const r = physics.rOfL(s.l);
+        const radius = r * 0.75;
+
+        const pot = -(CONFIG.r0 * CONFIG.r0) / (2.0 * (r * r + 1e-6));
+        const gravFactor = 1.0 / Math.sqrt(Math.max(0.1, 1.0 + 2.0 * pot));
+
+        const sinTheta = Math.sin(s.theta);
+        const v_l = s.dl;
+        const v_theta = r * s.dtheta;
+        const v_phi = r * sinTheta * s.dphi;
+        const E = Math.max(physics.params.E, 1e-3);
+        let v2 = (v_l * v_l + v_theta * v_theta + v_phi * v_phi) / (E * E + 1e-6);
+        v2 = Math.max(0.0, Math.min(0.99, v2));
+        const betaMag = Math.sqrt(v2);
+        const betaSign = (s.dl <= 0 ? -1.0 : 1.0);
+        const beta = betaSign * betaMag;
+        const gammaSR = 1.0 / Math.sqrt(1.0 - betaMag * betaMag);
+        const gammaEff = gravFactor * gammaSR;
+
+        wormholeMaterial.uniforms.timeDilation.value = gammaEff;
+        wormholeMaterial.uniforms.curvStrength.value = Math.min(1.0, Math.sqrt(Math.abs(physics.tidal.K)) * 20.0);
+        const offset = (s.theta - Math.PI / 2) * 0.9 * physics.params.r0;
+
+        const x = (radius + 0.25 * offset) * Math.cos(s.phi);
+        const y = (radius - 0.25 * offset) * Math.sin(s.phi);
+        const z = s.l + offset;
+
+        camera.position.set(x, y, z);
+
+        const lookAheadL = s.l + s.dl * 0.7;
+        const lookAheadPhi = s.phi + s.dphi * 0.7;
+        const lookAheadTheta = s.theta + s.dtheta * 0.4;
+        const rAhead = physics.rOfL(lookAheadL) * 0.75;
+        const offsetAhead = (lookAheadTheta - Math.PI / 2) * 0.9 * physics.params.r0;
+
+        const lx = (rAhead + 0.25 * offsetAhead) * Math.cos(lookAheadPhi);
+        const ly = (rAhead - 0.25 * offsetAhead) * Math.sin(lookAheadPhi);
+        const lz = lookAheadL + offsetAhead;
+
+        camera.lookAt(lx, ly, lz);
+
+        cameraForward.set(lx - x, ly - y, lz - z).normalize();
+        currentBeta = beta;
+
+        controls.enabled = false;
+
+        if (Math.abs(s.l) < 1.0 && Math.abs(s.dl) > 0.2) {
+            showNotification("CROSSING THROAT");
+        }
+    } else {
+        controls.update();
+        tidalRing.scale.lerp(new THREE.Vector3(1, 1, 1), 0.05);
+    }
+
+    if (physics.active || isTraversing) {
+        const s = physics.state;
+        const r = physics.rOfL(s.l);
+        const base = (physics.params.mode === "photon") ? 0.0 : 1.0;
+        const angTerm = r * r * (s.dtheta * s.dtheta + Math.sin(s.theta) ** 2 * s.dphi * s.dphi);
+        const Veff = base + angTerm;
+
+        ui.l.textContent = s.l.toFixed(2);
+        ui.r.textContent = r.toFixed(2);
+        ui.theta.textContent = (s.theta * 180 / Math.PI).toFixed(1);
+        ui.phi.textContent = (s.phi * 180 / Math.PI).toFixed(1);
+        ui.vrad.textContent = s.dl.toFixed(3);
+        ui.vtheta.textContent = s.dtheta.toFixed(3);
+        ui.vphi.textContent = s.dphi.toFixed(3);
+        ui.tau.textContent = s.tau.toFixed(2);
+        ui.t.textContent = s.t.toFixed(2);
+        ui.K.textContent = physics.tidal.K.toExponential(2);
+        ui.lamR.textContent = physics.tidal.lambdaR.toExponential(2);
+        ui.lamT.textContent = physics.tidal.lambdaT.toExponential(2);
+        ui.xiR.textContent = (physics.jacobi.xiR / physics.jacobi.xi0R).toFixed(2);
+        ui.xiT.textContent = (physics.jacobi.xiT / physics.jacobi.xi0T).toFixed(2);
+
+        if (physics.params.mode === "photon" && physics.active) {
+            applyRayBundleLensing(s.l, s, physics.jacobi);
+        } else {
+            resetStarfields();
+        }
+
+        updateEnergyDiagnostics(s.l, physics.params.r0, physics.tidal.K, gammaEff);
+        updateTidalBadges(physics.jacobi);
+        updatePetrovAndSpectrum(physics.tidal, gammaEff);
+    }
+
+    renderer.render(scene, camera);
+}
+
+// Initial camera pose
+camera.position.set(32, 22, 32);
+controls.target.set(0, 0, 0);
+setHUDVisible(true);
+initPanelToggles();
+initSpectrumCanvas();
+animate();
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+<!-- Stage 17: GR physics & optics modules (embedded) -->
+<script>
+
+// wormhole_physics_core_turn1.js
+// Standalone Morris–Thorne wormhole physics core
+// Ordis/ChatGPT — Turn 1 (Physics Core Delivery)
+//
+// Contents:
+//  - MorrisThorneMetric: redshift Φ(r), shape b(r), lapse, A(r)
+//  - ChristoffelEngine: Γ^μ_{αβ}(r, θ) for μ,α,β ∈ {t,r,θ,φ}
+//  - GeodesicState: container for x^μ, u^μ
+//  - GeodesicIntegratorMT: 4D RK4 integrator with timelike/null support
+//  - Simple redshift utilities
+//
+// Coordinates: x^μ = (t, r, θ, φ)
+// Metric:
+//   ds² = -e^{2Φ(r)} dt² + [1 - b(r)/r]^{-1} dr² + r²(dθ² + sin²θ dφ²)
+// Units: G = c = 1
+
+(function (root, factory) {
+    if (typeof module === "object" && typeof module.exports === "object") {
+        module.exports = factory();
+    } else {
+        root.WormholePhysicsCore = factory();
+    }
+})(typeof self !== "undefined" ? self : this, function () {
+    "use strict";
+
+    // ---------- Utility ----------
+
+    function clamp(x, lo, hi) {
+        return x < lo ? lo : (x > hi ? hi : x);
+    }
+
+    function isFiniteSafe(x, fallback) {
+        return Number.isFinite(x) ? x : fallback;
+    }
+
+    // ---------- Morris–Thorne Metric ----------
+
+    class MorrisThorneMetric {
+        /**
+         * @param {Object} opts
+         *  - r0: throat radius
+         *  - phiType: "zero_tidal" | "gaussian" | "power"
+         *  - shapeType: "ellis" | "mt_generic"
+         *  - phiParams, shapeParams: optional parameter objects
+         */
+        constructor(opts = {}) {
+            const defaults = {
+                r0: 1.5,
+                phiType: "zero_tidal",
+                shapeType: "ellis",
+                phiParams: {},
+                shapeParams: {}
+            };
+            this.config = Object.assign({}, defaults, opts);
+        }
+
+        get r0() {
+            return this.config.r0;
+        }
+
+        // Φ(r): redshift function
+        phi(r) {
+            const { phiType, phiParams } = this.config;
+            const R = Math.max(r, 1e-6);
+            if (phiType === "zero_tidal") {
+                // Zero–tidal–force wormhole: Φ = 0
+                return 0.0;
+            } else if (phiType === "gaussian") {
+                const amp = phiParams.amp ?? -0.4;
+                const sigma = phiParams.sigma ?? (2.0 * this.r0);
+                const x = (R - this.r0) / sigma;
+                return amp * Math.exp(-x * x);
+            } else if (phiType === "power") {
+                const k = phiParams.k ?? -0.3;
+                const p = phiParams.p ?? 2.0;
+                return k * Math.pow(this.r0 / R, p);
+            }
+            return 0.0;
+        }
+
+        // Φ'(r)
+        phiPrime(r) {
+            const { phiType, phiParams } = this.config;
+            const R = Math.max(r, 1e-6);
+            if (phiType === "zero_tidal") {
+                return 0.0;
+            } else if (phiType === "gaussian") {
+                const amp = phiParams.amp ?? -0.4;
+                const sigma = phiParams.sigma ?? (2.0 * this.r0);
+                const x = (R - this.r0) / sigma;
+                // d/dr [amp * exp(-x²)] = amp * exp(-x²) * (-2x / sigma)
+                return amp * Math.exp(-x * x) * (-2.0 * x / sigma);
+            } else if (phiType === "power") {
+                const k = phiParams.k ?? -0.3;
+                const p = phiParams.p ?? 2.0;
+                // Φ = k (r0/r)^p
+                // Φ' = k * p * (r0^p) * (-1) * r^{-(p+1)}
+                const base = Math.pow(this.r0, p);
+                return k * p * base * (-Math.pow(R, -(p + 1)));
+            }
+            return 0.0;
+        }
+
+        // b(r): shape function
+        b(r) {
+            const { shapeType, shapeParams } = this.config;
+            const R = Math.max(r, 1e-6);
+            if (shapeType === "ellis") {
+                // Ellis drainhole: b(r) = r0² / r
+                return (this.r0 * this.r0) / R;
+            } else if (shapeType === "mt_generic") {
+                // Generic Morris–Thorne–style b(r) = r0 (r0/r)^α
+                const alpha = shapeParams.alpha ?? 1.0;
+                return this.r0 * Math.pow(this.r0 / R, alpha);
+            }
+            // Fallback: Ellis–type
+            return (this.r0 * this.r0) / R;
+        }
+
+        // b'(r)
+        bPrime(r) {
+            const { shapeType, shapeParams } = this.config;
+            const R = Math.max(r, 1e-6);
+            if (shapeType === "ellis") {
+                // b = r0² / r → b' = -r0² / r²
+                return -(this.r0 * this.r0) / (R * R);
+            } else if (shapeType === "mt_generic") {
+                // b = r0 (r0/r)^α = r0^{α+1} r^{-α}
+                const alpha = shapeParams.alpha ?? 1.0;
+                const base = Math.pow(this.r0, alpha + 1.0);
+                return -alpha * base * Math.pow(R, -(alpha + 1.0));
+            }
+            return -(this.r0 * this.r0) / (R * R);
+        }
+
+        // A(r) = 1 - b(r)/r
+        A(r) {
+            const R = Math.max(r, 1e-6);
+            const br = this.b(R);
+            return 1.0 - br / R;
+        }
+
+        // A'(r)
+        APrime(r) {
+            const R = Math.max(r, 1e-6);
+            const br = this.b(R);
+            const bp = this.bPrime(R);
+            // A = 1 - b/r → A' = -b'/r + b/r²
+            return -(bp / R) + br / (R * R);
+        }
+
+        // g_{μν} components
+        // μ,ν ∈ {0=t,1=r,2=θ,3=φ}
+        g_tt(r) {
+            const phi = this.phi(r);
+            return -Math.exp(2.0 * phi);
+        }
+
+        g_rr(r) {
+            const A = this.A(r);
+            const eps = 1e-9;
+            return 1.0 / (A + eps);
+        }
+
+        g_thth(r) {
+            return r * r;
+        }
+
+        g_phph(r, theta) {
+            const s = Math.sin(theta);
+            return r * r * s * s;
+        }
+
+        // Inverse metric
+        gInv_tt(r) {
+            const phi = this.phi(r);
+            return -Math.exp(-2.0 * phi);
+        }
+
+        gInv_rr(r) {
+            return this.A(r);
+        }
+
+        gInv_thth(r) {
+            const R = Math.max(r, 1e-6);
+            return 1.0 / (R * R);
+        }
+
+        gInv_phph(r, theta) {
+            const s = Math.sin(theta);
+            const denom = (r * r * s * s) || 1e-12;
+            return 1.0 / denom;
+        }
+
+        // Lapse = e^{Φ(r)}: mapping between coordinate time and proper time
+        lapse(r) {
+            return Math.exp(this.phi(r));
+        }
+
+        // Static–observer gravitational redshift between radius r and infinity:
+        // 1 + z = 1 / lapse(r)
+        redshiftFactor(r) {
+            const L = this.lapse(r);
+            return 1.0 / (L || 1e-9);
+        }
+    }
+
+    // ---------- Christoffel Engine ----------
+    //
+    // We precompute analytic Γ^μ_{αβ} for the Morris–Thorne form.
+    // Ordering: μ,α,β ∈ {t=0, r=1, θ=2, φ=3}
+
+    class ChristoffelEngine {
+        constructor(metric) {
+            this.metric = metric;
+        }
+
+        /**
+         * Compute all non-zero Christoffel symbols at (r, θ).
+         * Returns an object with named entries.
+         */
+        compute(r, theta) {
+            const m = this.metric;
+            const R = Math.max(r, 1e-6);
+            const th = theta;
+            const s = Math.sin(th);
+            const c = Math.cos(th);
+            const s2 = s * s;
+
+            const phi = m.phi(R);
+            const phiPrime = m.phiPrime(R);
+            const A = m.A(R);
+            const APrime = m.APrime(R);
+
+            const g_rr = m.g_rr(R);
+            const gInv_rr = m.gInv_rr(R);
+
+            // Γ^t_{tr} = Γ^t_{rt} = Φ'(r)
+            const Gamma_t_tr = phiPrime;
+
+            // Γ^r_{tt} = A e^{2Φ} Φ'
+            const Gamma_r_tt = A * Math.exp(2.0 * phi) * phiPrime;
+
+            // Γ^r_{rr} = -A' / (2A)
+            const denomA = (A !== 0 ? A : 1e-9);
+            const Gamma_r_rr = -APrime / (2.0 * denomA);
+
+            // Γ^r_{θθ} = -A r
+            const Gamma_r_thth = -A * R;
+
+            // Γ^r_{φφ} = -A r sin²θ
+            const Gamma_r_phph = -A * R * s2;
+
+            // Γ^θ_{rθ} = Γ^θ_{θr} = 1/r
+            const Gamma_th_rth = 1.0 / R;
+
+            // Γ^θ_{φφ} = -sinθ cosθ
+            const Gamma_th_phph = -s * c;
+
+            // Γ^φ_{rφ} = Γ^φ_{φr} = 1/r
+            const Gamma_ph_rph = 1.0 / R;
+
+            // Γ^φ_{θφ} = Γ^φ_{φθ} = cotθ
+            const cot = (Math.abs(s) < 1e-9) ? 0.0 : (c / s);
+            const Gamma_ph_thph = cot;
+
+            return {
+                // t-components
+                Gamma_t_tr, // = Γ^t_{tr} = Γ^t_{rt}
+
+                // r-components
+                Gamma_r_tt,
+                Gamma_r_rr,
+                Gamma_r_thth,
+                Gamma_r_phph,
+
+                // θ-components
+                Gamma_th_rth,
+                Gamma_th_phph,
+
+                // φ-components
+                Gamma_ph_rph,
+                Gamma_ph_thph
+            };
+        }
+    }
+
+    // ---------- Geodesic State ----------
+
+    class GeodesicState {
+        constructor() {
+            // positions: x^μ = (t, r, θ, φ)
+            this.t = 0.0;
+            this.r = 0.0;
+            this.theta = Math.PI / 2;
+            this.phi = 0.0;
+
+            // 4-velocity components: u^μ = dx^μ/dτ (or affine parameter λ for null)
+            this.u_t = 0.0;
+            this.u_r = 0.0;
+            this.u_th = 0.0;
+            this.u_ph = 0.0;
+
+            // cached diagnostics
+            this.affine = 0.0;
+        }
+
+        clone() {
+            const s = new GeodesicState();
+            s.t = this.t;
+            s.r = this.r;
+            s.theta = this.theta;
+            s.phi = this.phi;
+            s.u_t = this.u_t;
+            s.u_r = this.u_r;
+            s.u_th = this.u_th;
+            s.u_ph = this.u_ph;
+            s.affine = this.affine;
+            return s;
+        }
+    }
+
+    // ---------- Geodesic Integrator (RK4) ----------
+
+    class GeodesicIntegratorMT {
+        /**
+         * @param {MorrisThorneMetric} metric
+         * @param {Object} opts
+         *  - type: "timelike" | "null"
+         *  - E: energy per unit mass
+         *  - L: azimuthal angular momentum per unit mass
+         *  - theta0, u_theta0: initial θ and θ-velocity
+         *  - inward: boolean, if true start infalling in r-direction
+         */
+        constructor(metric, opts = {}) {
+            this.metric = metric;
+            this.Gamma = new ChristoffelEngine(metric);
+
+            const defaults = {
+                type: "timelike",
+                E: 1.2,
+                L: 0.5,
+                theta0: Math.PI / 2,
+                u_theta0: 0.0,
+                inward: true,
+                rStart: 12.0
+            };
+            this.params = Object.assign({}, defaults, opts);
+
+            this.state = new GeodesicState();
+            this.active = false;
+            this.lastNorm = 0.0; // g_{μν} u^μ u^ν
+
+            this.initializeState();
+        }
+
+        setParams(newParams) {
+            Object.assign(this.params, newParams);
+            this.initializeState();
+        }
+
+        initializeState() {
+            const p = this.params;
+            const m = this.metric;
+
+            const s = this.state;
+            s.t = 0.0;
+            s.r = Math.max(p.rStart, m.r0 * 1.05);
+            s.theta = clamp(p.theta0, 1e-4, Math.PI - 1e-4);
+            s.phi = 0.0;
+            s.affine = 0.0;
+
+            // Constants of motion
+            const E = p.E;
+            const L = p.L;
+            const kappa = (p.type === "null") ? 0.0 : 1.0;
+
+            const phi = m.phi(s.r);
+            const A = m.A(s.r);
+            const g_thth = m.g_thth(s.r);
+            const g_phph = m.g_phph(s.r, s.theta);
+
+            // u^t from energy: E = -g_tt u^t = e^{2Φ} u^t
+            s.u_t = E * Math.exp(-2.0 * phi);
+
+            // u^φ from azimuthal angular momentum: L = g_φφ u^φ
+            s.u_ph = (g_phph > 0 ? L / g_phph : 0.0);
+
+            // set u^θ = initial polar component
+            s.u_th = p.u_theta0;
+
+            // Solve for u^r from normalization:
+            // g_tt u^t² + g_rr u^r² + g_θθ u^θ² + g_φφ u^φ² = -κ
+            const g_tt = m.g_tt(s.r);
+            const g_rr = m.g_rr(s.r);
+
+            const term_t = g_tt * s.u_t * s.u_t;
+            const term_th = g_thth * s.u_th * s.u_th;
+            const term_ph = g_phph * s.u_ph * s.u_ph;
+
+            const rhs = -kappa - term_t - term_th - term_ph;
+
+            if (rhs <= 0.0 || !Number.isFinite(rhs)) {
+                // Unphysical combination (E, L, θ, u_θ). Mark inactive.
+                s.u_r = 0.0;
+                this.active = false;
+                this.lastNorm = NaN;
+                return;
+            }
+
+            const sign = p.inward ? -1.0 : +1.0;
+            s.u_r = sign * Math.sqrt(rhs / g_rr);
+
+            // Track current normalization
+            this.lastNorm = this.computeNorm(s);
+            this.active = true;
+        }
+
+        computeNorm(state) {
+            const m = this.metric;
+            const r = state.r;
+            const th = state.theta;
+
+            const g_tt = m.g_tt(r);
+            const g_rr = m.g_rr(r);
+            const g_thth = m.g_thth(r);
+            const g_phph = m.g_phph(r, th);
+
+            return (
+                g_tt * state.u_t * state.u_t +
+                g_rr * state.u_r * state.u_r +
+                g_thth * state.u_th * state.u_th +
+                g_phph * state.u_ph * state.u_ph
+            );
+        }
+
+        // First-order system: dX/dλ = F(X)
+        // X = (t, r, θ, φ, u^t, u^r, u^θ, u^φ)
+        derivatives(state) {
+            const m = this.metric;
+            const R = Math.max(state.r, 1e-6);
+            const th = clamp(state.theta, 1e-5, Math.PI - 1e-5);
+
+            const G = this.Gamma.compute(R, th);
+
+            const ut = state.u_t;
+            const ur = state.u_r;
+            const uth = state.u_th;
+            const uph = state.u_ph;
+
+            // dx^μ / dλ = u^μ
+            const dt = ut;
+            const dr = ur;
+            const dtheta = uth;
+            const dphi = uph;
+
+            // du^μ / dλ = -Γ^μ_{αβ} u^α u^β
+            // t-component: Γ^t_{tr} = Γ^t_{rt} = Φ'(r)
+            const dut = -2.0 * G.Gamma_t_tr * ut * ur;
+
+            // r-component:
+            // Γ^r_{tt}, Γ^r_{rr}, Γ^r_{θθ}, Γ^r_{φφ}
+            const dur = -(
+                G.Gamma_r_tt * ut * ut +
+                G.Gamma_r_rr * ur * ur +
+                G.Gamma_r_thth * uth * uth +
+                G.Gamma_r_phph * uph * uph
+            );
+
+            // θ-component:
+            // Γ^θ_{rθ} = Γ^θ_{θr}, Γ^θ_{φφ}
+            const duth = -(
+                2.0 * G.Gamma_th_rth * ur * uth +
+                G.Gamma_th_phph * uph * uph
+            );
+
+            // φ-component:
+            // Γ^φ_{rφ} = Γ^φ_{φr}, Γ^φ_{θφ} = Γ^φ_{φθ}
+            const duph = -(
+                2.0 * G.Gamma_ph_rph * ur * uph +
+                2.0 * G.Gamma_ph_thph * uth * uph
+            );
+
+            return { dt, dr, dtheta, dphi, dut, dur, duth, duph };
+        }
+
+        // One RK4 step in affine parameter λ (or proper time τ for timelike)
+        stepRK4(dlambda) {
+            if (!this.active) return;
+
+            const s = this.state;
+
+            const k1 = this.derivatives(s);
+            const s2 = this._offsetState(s, k1, dlambda * 0.5);
+            const k2 = this.derivatives(s2);
+            const s3 = this._offsetState(s, k2, dlambda * 0.5);
+            const k3 = this.derivatives(s3);
+            const s4 = this._offsetState(s, k3, dlambda);
+            const k4 = this.derivatives(s4);
+
+            const h6 = dlambda / 6.0;
+
+            s.t     += h6 * (k1.dt    + 2 * k2.dt    + 2 * k3.dt    + k4.dt);
+            s.r     += h6 * (k1.dr    + 2 * k2.dr    + 2 * k3.dr    + k4.dr);
+            s.theta += h6 * (k1.dtheta+ 2 * k2.dtheta+ 2 * k3.dtheta+ k4.dtheta);
+            s.phi   += h6 * (k1.dphi  + 2 * k2.dphi  + 2 * k3.dphi  + k4.dphi);
+
+            s.u_t   += h6 * (k1.dut   + 2 * k2.dut   + 2 * k3.dut   + k4.dut);
+            s.u_r   += h6 * (k1.dur   + 2 * k2.dur   + 2 * k3.dur   + k4.dur);
+            s.u_th  += h6 * (k1.duth  + 2 * k2.duth  + 2 * k3.duth  + k4.duth);
+            s.u_ph  += h6 * (k1.duph  + 2 * k2.duph  + 2 * k3.duph  + k4.duph);
+
+            // Renormalize θ into [0, π] and φ into [0, 2π)
+            const pi = Math.PI;
+            if (s.theta < 0.0) {
+                s.theta = -s.theta;
+                s.u_th = -s.u_th;
+            }
+            if (s.theta > pi) {
+                s.theta = pi - (s.theta - pi);
+                s.u_th = -s.u_th;
+            }
+            const twopi = 2.0 * pi;
+            s.phi = s.phi % twopi;
+            if (s.phi < 0) s.phi += twopi;
+
+            s.affine += dlambda;
+
+            // Update normalization diagnostic
+            this.lastNorm = this.computeNorm(s);
+
+            // Simple safety: deactivate if we cross too close to b(r) ~ r region or r blows up
+            if (!Number.isFinite(s.r) || s.r < this.metric.r0 * 0.95 || s.r > 1e4) {
+                this.active = false;
+            }
+        }
+
+        _offsetState(s, k, h) {
+            const s2 = new GeodesicState();
+            s2.t     = s.t     + h * k.dt;
+            s2.r     = s.r     + h * k.dr;
+            s2.theta = s.theta + h * k.dtheta;
+            s2.phi   = s.phi   + h * k.dphi;
+
+            s2.u_t   = s.u_t   + h * k.dut;
+            s2.u_r   = s.u_r   + h * k.dur;
+            s2.u_th  = s.u_th  + h * k.duth;
+            s2.u_ph  = s.u_ph  + h * k.duph;
+
+            s2.affine = s.affine + h;
+
+            return s2;
+        }
+
+        // Diagnostic: effective time-dilation factor for this trajectory
+        // γ_eff = lapse(r) * u^t
+        gammaEffective() {
+            const L = this.metric.lapse(this.state.r);
+            return L * this.state.u_t;
+        }
+
+        // Convenience: single stepping loop
+        /**
+         * Integrate for N steps of size dλ, collecting samples.
+         * @param {number} steps
+         * @param {number} dlambda
+         * @param {function(GeodesicState, number):void} callback
+         */
+        integrate(steps, dlambda, callback) {
+            for (let i = 0; i < steps; i++) {
+                if (!this.active) break;
+                if (callback) callback(this.state, i);
+                this.stepRK4(dlambda);
+            }
+        }
+    }
+
+    // ---------- Export ----------
+
+    return {
+        MorrisThorneMetric,
+        ChristoffelEngine,
+        GeodesicState,
+        GeodesicIntegratorMT
+    };
+});
+
+</script>
+<script>
+
+// wormhole_curvature_tetrad_turn2.js
+// Curvature + tetrad engine for Morris–Thorne wormholes
+// Works with WormholePhysicsCore (Turn 1 module)
+// Ordis/ChatGPT — Turn 2 (Curvature + Tetrads)
+//
+// Exports (UMD):
+//   WormholeCurvatureTetrad = {
+//     CurvatureEngineMT,
+//     OrthonormalTetradMT,
+//     ParallelTransporterMT
+//   }
+//
+// Assumes metric has methods:
+//   g_tt(r), g_rr(r), g_thth(r), g_phph(r,theta)
+//   gInv_tt(r), gInv_rr(r), gInv_thth(r), gInv_phph(r,theta)
+// and ChristoffelEngine has method compute(r,theta) as in Turn 1.
+
+(function (root, factory) {
+    if (typeof module === "object" && typeof module.exports === "object") {
+        module.exports = factory(root.WormholePhysicsCore || null);
+    } else {
+        root.WormholeCurvatureTetrad = factory(root.WormholePhysicsCore || null);
+    }
+})(typeof self !== "undefined" ? self : this, function (WormholePhysicsCore) {
+    "use strict";
+
+    // ---------- Utility ----------
+
+    function zeros4(a, b, c, d) {
+        const arr = new Array(a);
+        for (let i = 0; i < a; i++) {
+            arr[i] = new Array(b);
+            for (let j = 0; j < b; j++) {
+                arr[i][j] = new Array(c);
+                for (let k = 0; k < c; k++) {
+                    arr[i][j][k] = new Array(d).fill(0.0);
+                }
+            }
+        }
+        return arr;
+    }
+
+    function zeros2(n, m) {
+        const arr = new Array(n);
+        for (let i = 0; i < n; i++) {
+            arr[i] = new Array(m).fill(0.0);
+        }
+        return arr;
+    }
+
+    function clone2(src) {
+        const n = src.length;
+        const m = src[0].length;
+        const out = new Array(n);
+        for (let i = 0; i < n; i++) {
+            out[i] = new Array(m);
+            for (let j = 0; j < m; j++) {
+                out[i][j] = src[i][j];
+            }
+        }
+        return out;
+    }
+
+    function isFiniteSafe(x, fallback) {
+        return Number.isFinite(x) ? x : fallback;
+    }
+
+    // ---------- Orthonormal tetrad for static observers ----------
+    //
+    // Basis vectors e_(a)^μ, a = 0..3, μ = 0..3
+    // e_(0) is the static observer four-velocity.
+
+    class OrthonormalTetradMT {
+        constructor(metric) {
+            this.metric = metric;
+        }
+
+        /**
+         * Construct a simple static orthonormal tetrad at (r,θ).
+         * Returns 4x4 array e[a][mu] with ordering (t,r,θ,φ).
+         */
+        buildStaticTetrad(r, theta) {
+            const m = this.metric;
+            const g_tt = m.g_tt(r);
+            const g_rr = m.g_rr(r);
+            const g_thth = m.g_thth(r);
+            const g_phph = m.g_phph(r, theta);
+
+            const e = zeros2(4, 4);
+
+            // Normalize basis using metric signature (-,+,+,+)
+            // e_(0)^μ = (1/sqrt(-g_tt), 0, 0, 0)
+            const norm0 = Math.sqrt(Math.max(1e-12, -g_tt));
+            e[0][0] = 1.0 / norm0;
+
+            // e_(1)^μ = (0, 1/sqrt(g_rr), 0, 0)
+            const norm1 = Math.sqrt(Math.max(1e-12, g_rr));
+            e[1][1] = 1.0 / norm1;
+
+            // e_(2)^μ = (0, 0, 1/sqrt(g_thth), 0)
+            const norm2 = Math.sqrt(Math.max(1e-12, g_thth));
+            e[2][2] = 1.0 / norm2;
+
+            // e_(3)^μ = (0, 0, 0, 1/sqrt(g_phph))
+            const norm3 = Math.sqrt(Math.max(1e-12, g_phph));
+            e[3][3] = 1.0 / norm3;
+
+            return e;
+        }
+
+        /**
+         * Lower tetrad indices: e_(a)_μ = g_{μν} e_(a)^ν
+         */
+        lowerTetrad(eUp, r, theta) {
+            const m = this.metric;
+            const g = [
+                [m.g_tt(r), 0, 0, 0],
+                [0, m.g_rr(r), 0, 0],
+                [0, 0, m.g_thth(r), 0],
+                [0, 0, 0, m.g_phph(r, theta)]
+            ];
+            const eDown = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    let s = 0.0;
+                    for (let nu = 0; nu < 4; nu++) {
+                        s += g[mu][nu] * eUp[a][nu];
+                    }
+                    eDown[a][mu] = s;
+                }
+            }
+            return eDown;
+        }
+
+        /**
+         * Project a rank-2 covariant tensor T_{μν} into tetrad basis.
+         * returns T_(a)(b) = e_(a)^μ e_(b)^ν T_{μν}.
+         */
+        projectCov2ToTetrad(Tcov, eUp) {
+            const out = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let b = 0; b < 4; b++) {
+                    let s = 0.0;
+                    for (let mu = 0; mu < 4; mu++) {
+                        for (let nu = 0; nu < 4; nu++) {
+                            s += eUp[a][mu] * eUp[b][nu] * Tcov[mu][nu];
+                        }
+                    }
+                    out[a][b] = s;
+                }
+            }
+            return out;
+        }
+    }
+
+    // ---------- Curvature Engine ----------
+
+    class CurvatureEngineMT {
+        /**
+         * @param {object} metric MorrisThorneMetric instance
+         * @param {object} christoffelEngine ChristoffelEngine instance
+         * @param {object} [opts]
+         *   - dr: finite difference step in r
+         *   - dtheta: finite difference step in θ
+         */
+        constructor(metric, christoffelEngine, opts = {}) {
+            this.metric = metric;
+            this.GammaEngine = christoffelEngine;
+            this.opts = Object.assign({
+                dr: 1e-3,
+                dtheta: 1e-3
+            }, opts);
+
+            this.tetradHelper = new OrthonormalTetradMT(metric);
+        }
+
+        // Build full Γ^μ_{αβ} array from analytic subset
+        buildGammaTensor(r, theta) {
+            const G = this.GammaEngine.compute(r, theta);
+            const Gamma = zeros4(4, 4, 4, 1)[0]; // trick: create 4x4x4
+
+            // index mapping: 0=t,1=r,2=θ,3=φ
+
+            // Γ^t_{tr} = Γ^t_{rt} = G.Gamma_t_tr
+            Gamma[0][0][1] = G.Gamma_t_tr;
+            Gamma[0][1][0] = G.Gamma_t_tr;
+
+            // r-components
+            Gamma[1][0][0] = G.Gamma_r_tt;
+            Gamma[1][1][1] = G.Gamma_r_rr;
+            Gamma[1][2][2] = G.Gamma_r_thth;
+            Gamma[1][3][3] = G.Gamma_r_phph;
+
+            // θ-components
+            Gamma[2][1][2] = G.Gamma_th_rth;
+            Gamma[2][2][1] = G.Gamma_th_rth;
+            Gamma[2][3][3] = G.Gamma_th_phph;
+
+            // φ-components
+            Gamma[3][1][3] = G.Gamma_ph_rph;
+            Gamma[3][3][1] = G.Gamma_ph_rph;
+            Gamma[3][2][3] = G.Gamma_ph_thph;
+            Gamma[3][3][2] = G.Gamma_ph_thph;
+
+            return Gamma;
+        }
+
+        // Finite-difference ∂_ρ Γ^μ_{νσ}; only r,θ derivatives are non-zero.
+        partialGamma(r, theta) {
+            const h_r = this.opts.dr;
+            const h_th = this.opts.dtheta;
+
+            const Gamma = this.buildGammaTensor(r, theta);
+            const dGamma = zeros4(4, 4, 4, 4); // [rho][mu][nu][sigma]
+
+            // derivative wrt r (ρ = 1)
+            const Gp_r = this.buildGammaTensor(r + h_r, theta);
+            const Gm_r = this.buildGammaTensor(r - h_r, theta);
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    for (let sig = 0; sig < 4; sig++) {
+                        const val = (Gp_r[mu][nu][sig] - Gm_r[mu][nu][sig]) / (2.0 * h_r);
+                        dGamma[1][mu][nu][sig] = val;
+                    }
+                }
+            }
+
+            // derivative wrt θ (ρ = 2)
+            const Gp_th = this.buildGammaTensor(r, theta + h_th);
+            const Gm_th = this.buildGammaTensor(r, theta - h_th);
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    for (let sig = 0; sig < 4; sig++) {
+                        const val = (Gp_th[mu][nu][sig] - Gm_th[mu][nu][sig]) / (2.0 * h_th);
+                        dGamma[2][mu][nu][sig] = val;
+                    }
+                }
+            }
+
+            // t, φ derivatives (ρ = 0,3) are zero by static spherical symmetry
+            return { Gamma, dGamma };
+        }
+
+        // Compute R^μ_{νρσ} at (r,θ)
+        computeRiemannUp(r, theta) {
+            const { Gamma, dGamma } = this.partialGamma(r, theta);
+            const R = zeros4(4, 4, 4, 4); // R^μ_{νρσ}
+
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    for (let rho = 0; rho < 4; rho++) {
+                        for (let sig = 0; sig < 4; sig++) {
+                            // ∂_ρ Γ^μ_{νσ} - ∂_σ Γ^μ_{νρ}
+                            const d1 = dGamma[rho][mu][nu][sig];
+                            const d2 = dGamma[sig][mu][nu][rho];
+                            let val = d1 - d2;
+
+                            // + Γ^μ_{λρ} Γ^λ_{νσ} - Γ^μ_{λσ} Γ^λ_{νρ}
+                            let sum1 = 0.0;
+                            let sum2 = 0.0;
+                            for (let lam = 0; lam < 4; lam++) {
+                                sum1 += Gamma[mu][lam][rho] * Gamma[lam][nu][sig];
+                                sum2 += Gamma[mu][lam][sig] * Gamma[lam][nu][rho];
+                            }
+                            val += sum1 - sum2;
+                            R[mu][nu][rho][sig] = val;
+                        }
+                    }
+                }
+            }
+
+            return R;
+        }
+
+        // Build metric matrices
+        metricCovariant(r, theta) {
+            const m = this.metric;
+            return [
+                [m.g_tt(r), 0, 0, 0],
+                [0, m.g_rr(r), 0, 0],
+                [0, 0, m.g_thth(r), 0],
+                [0, 0, 0, m.g_phph(r, theta)]
+            ];
+        }
+
+        metricContravariant(r, theta) {
+            const m = this.metric;
+            return [
+                [m.gInv_tt(r), 0, 0, 0],
+                [0, m.gInv_rr(r), 0, 0],
+                [0, 0, m.gInv_thth(r), 0],
+                [0, 0, 0, m.gInv_phph(r, theta)]
+            ];
+        }
+
+        // Lower first index: R_{μνρσ} = g_{μα} R^α_{νρσ}
+        lowerRiemann(Rup, gCov) {
+            const Rdown = zeros4(4, 4, 4, 4);
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    for (let rho = 0; rho < 4; rho++) {
+                        for (let sig = 0; sig < 4; sig++) {
+                            let s = 0.0;
+                            for (let alpha = 0; alpha < 4; alpha++) {
+                                s += gCov[mu][alpha] * Rup[alpha][nu][rho][sig];
+                            }
+                            Rdown[mu][nu][rho][sig] = s;
+                        }
+                    }
+                }
+            }
+            return Rdown;
+        }
+
+        // Ricci tensor: R_{νσ} = R^μ_{νμσ}
+        ricciFromRiemann(Rup, gCov) {
+            const Ric = zeros2(4, 4);
+            for (let nu = 0; nu < 4; nu++) {
+                for (let sig = 0; sig < 4; sig++) {
+                    let s = 0.0;
+                    for (let mu = 0; mu < 4; mu++) {
+                        s += Rup[mu][nu][mu][sig];
+                    }
+                    Ric[nu][sig] = s;
+                }
+            }
+            return Ric;
+        }
+
+        // Ricci scalar: R = g^{μν} R_{μν}
+        ricciScalar(Rcov, gInv) {
+            let R = 0.0;
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    R += gInv[mu][nu] * Rcov[mu][nu];
+                }
+            }
+            return R;
+        }
+
+        // Einstein tensor: G_{μν} = R_{μν} - (1/2) g_{μν} R
+        einsteinTensor(Rcov, gCov, Rscalar) {
+            const G = zeros2(4, 4);
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    G[mu][nu] = Rcov[mu][nu] - 0.5 * gCov[mu][nu] * Rscalar;
+                }
+            }
+            return G;
+        }
+
+        // Kretschmann scalar: K = R_{μνρσ} R^{μνρσ}
+        kretschmann(Rdown, gInv) {
+            let K = 0.0;
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    for (let rho = 0; rho < 4; rho++) {
+                        for (let sig = 0; sig < 4; sig++) {
+                            let up = 0.0;
+                            for (let a = 0; a < 4; a++) {
+                                for (let b = 0; b < 4; b++) {
+                                    for (let c = 0; c < 4; c++) {
+                                        for (let d = 0; d < 4; d++) {
+                                            up += gInv[mu][a] * gInv[nu][b] * gInv[rho][c] * gInv[sig][d]
+                                                * Rdown[a][b][c][d];
+                                        }
+                                    }
+                                }
+                            }
+                            K += Rdown[mu][nu][rho][sig] * up;
+                        }
+                    }
+                }
+            }
+            return K;
+        }
+
+        /**
+         * Full curvature data at (r,θ)
+         * Returns {
+         *   gCov, gInv,
+         *   RiemannUp, RiemannDown,
+         *   RicciCov, RicciScalar,
+         *   EinsteinCov,
+         *   invariants: { R, K }
+         * }
+         */
+        computeAll(r, theta) {
+            const Rup = this.computeRiemannUp(r, theta);
+            const gCov = this.metricCovariant(r, theta);
+            const gInv = this.metricContravariant(r, theta);
+            const Rcov = this.ricciFromRiemann(Rup, gCov);
+            const Rscalar = this.ricciScalar(Rcov, gInv);
+            const Gcov = this.einsteinTensor(Rcov, gCov, Rscalar);
+            const Rdown = this.lowerRiemann(Rup, gCov);
+            const K = this.kretschmann(Rdown, gInv);
+
+            return {
+                gCov,
+                gInv,
+                RiemannUp: Rup,
+                RiemannDown: Rdown,
+                RicciCov: Rcov,
+                RicciScalar: Rscalar,
+                EinsteinCov: Gcov,
+                invariants: {
+                    RicciScalar: Rscalar,
+                    Kretschmann: K
+                }
+            };
+        }
+
+        /**
+         * Convenience: compute orthonormal-frame stress-energy T_(a)(b)
+         * using Einstein equations G_{μν} = 8π T_{μν}.
+         * Returns { T_cov, T_hat, rho, pr, pt }
+         */
+        stressEnergyStaticObserver(r, theta) {
+            const data = this.computeAll(r, theta);
+            const Gcov = data.EinsteinCov;
+            const eUp = this.tetradHelper.buildStaticTetrad(r, theta);
+            const Tcov = zeros2(4, 4);
+            const inv8pi = 1.0 / (8.0 * Math.PI);
+
+            for (let mu = 0; mu < 4; mu++) {
+                for (let nu = 0; nu < 4; nu++) {
+                    Tcov[mu][nu] = Gcov[mu][nu] * inv8pi;
+                }
+            }
+
+            const That = this.tetradHelper.projectCov2ToTetrad(Tcov, eUp);
+            const rho = -That[0][0];         // energy density in rest frame
+            const pr  = That[1][1];         // radial pressure
+            const pt  = 0.5 * (That[2][2] + That[3][3]); // average tangential
+
+            return {
+                T_cov: Tcov,
+                T_hat: That,
+                rho: rho,
+                pr: pr,
+                pt: pt,
+                invariants: data.invariants
+            };
+        }
+    }
+
+    // ---------- Parallel transport of tetrads along geodesics ----------
+
+    class ParallelTransporterMT {
+        /**
+         * @param {object} metric
+         * @param {object} christoffelEngine
+         */
+        constructor(metric, christoffelEngine) {
+            this.metric = metric;
+            this.GammaEngine = christoffelEngine;
+            this.tetradHelper = new OrthonormalTetradMT(metric);
+        }
+
+        buildGammaTensor(r, theta) {
+            const G = this.GammaEngine.compute(r, theta);
+            const Gamma = zeros4(4, 4, 4, 1)[0];
+            Gamma[0][0][1] = G.Gamma_t_tr;
+            Gamma[0][1][0] = G.Gamma_t_tr;
+
+            Gamma[1][0][0] = G.Gamma_r_tt;
+            Gamma[1][1][1] = G.Gamma_r_rr;
+            Gamma[1][2][2] = G.Gamma_r_thth;
+            Gamma[1][3][3] = G.Gamma_r_phph;
+
+            Gamma[2][1][2] = G.Gamma_th_rth;
+            Gamma[2][2][1] = G.Gamma_th_rth;
+            Gamma[2][3][3] = G.Gamma_th_phph;
+
+            Gamma[3][1][3] = G.Gamma_ph_rph;
+            Gamma[3][3][1] = G.Gamma_ph_rph;
+            Gamma[3][2][3] = G.Gamma_ph_thph;
+            Gamma[3][3][2] = G.Gamma_ph_thph;
+
+            return Gamma;
+        }
+
+        // d e_(a)^μ / dλ = - Γ^μ_{νρ} u^ρ e_(a)^ν
+        tetradDerivatives(state, eUp) {
+            const Gamma = this.buildGammaTensor(state.r, state.theta);
+            const u = [state.u_t, state.u_r, state.u_th, state.u_ph];
+
+            const de = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    let s = 0.0;
+                    for (let nu = 0; nu < 4; nu++) {
+                        for (let rho = 0; rho < 4; rho++) {
+                            s += -Gamma[mu][nu][rho] * u[rho] * eUp[a][nu];
+                        }
+                    }
+                    de[a][mu] = s;
+                }
+            }
+            return de;
+        }
+
+        // One RK4 step for tetrad along given geodesic state
+        stepTetradRK4(state, eUp, dlambda) {
+            const k1 = this.tetradDerivatives(state, eUp);
+
+            const e2 = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    e2[a][mu] = eUp[a][mu] + 0.5 * dlambda * k1[a][mu];
+                }
+            }
+            const k2 = this.tetradDerivatives(state, e2);
+
+            const e3 = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    e3[a][mu] = eUp[a][mu] + 0.5 * dlambda * k2[a][mu];
+                }
+            }
+            const k3 = this.tetradDerivatives(state, e3);
+
+            const e4 = zeros2(4, 4);
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    e4[a][mu] = eUp[a][mu] + dlambda * k3[a][mu];
+                }
+            }
+            const k4 = this.tetradDerivatives(state, e4);
+
+            const h6 = dlambda / 6.0;
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    eUp[a][mu] += h6 * (k1[a][mu] + 2 * k2[a][mu] + 2 * k3[a][mu] + k4[a][mu]);
+                }
+            }
+
+            // Re-orthonormalize tetrad to control numerical drift
+            this.reorthonormalize(state, eUp);
+            return eUp;
+        }
+
+        // Gram-Schmidt with metric
+        reorthonormalize(state, eUp) {
+            const r = state.r;
+            const theta = state.theta;
+            const g = [
+                [this.metric.g_tt(r), 0, 0, 0],
+                [0, this.metric.g_rr(r), 0, 0],
+                [0, 0, this.metric.g_thth(r), 0],
+                [0, 0, 0, this.metric.g_phph(r, theta)]
+            ];
+
+            function inner(v, w) {
+                let s = 0.0;
+                for (let mu = 0; mu < 4; mu++) {
+                    for (let nu = 0; nu < 4; nu++) {
+                        s += g[mu][nu] * v[mu] * w[nu];
+                    }
+                }
+                return s;
+            }
+
+            // Normalize e0 to timelike norm -1
+            let n0 = inner(eUp[0], eUp[0]);
+            n0 = (n0 === 0 ? -1e-12 : n0);
+            const scale0 = 1.0 / Math.sqrt(Math.abs(n0));
+            for (let mu = 0; mu < 4; mu++) eUp[0][mu] *= scale0;
+
+            // Make spatial vectors orthogonal to e0
+            for (let a = 1; a < 4; a++) {
+                const proj = inner(eUp[a], eUp[0]);
+                for (let mu = 0; mu < 4; mu++) {
+                    eUp[a][mu] -= proj * eUp[0][mu];
+                }
+            }
+
+            // Gram-Schmidt spatial components
+            for (let a = 1; a < 4; a++) {
+                for (let b = 1; b < a; b++) {
+                    const proj = inner(eUp[a], eUp[b]);
+                    for (let mu = 0; mu < 4; mu++) {
+                        eUp[a][mu] -= proj * eUp[b][mu];
+                    }
+                }
+                let n = inner(eUp[a], eUp[a]);
+                n = (n === 0 ? 1e-12 : n);
+                const scale = 1.0 / Math.sqrt(Math.abs(n));
+                for (let mu = 0; mu < 4; mu++) eUp[a][mu] *= scale;
+            }
+        }
+    }
+
+    return {
+        CurvatureEngineMT,
+        OrthonormalTetradMT,
+        ParallelTransporterMT
+    };
+});
+
+</script>
+<script>
+
+// wormhole_optics_sachs_turn3.js
+// Null bundle + Sachs optics engine for Morris–Thorne wormholes
+// Works with WormholePhysicsCore (Turn 1) and WormholeCurvatureTetrad (Turn 2)
+// Ordis/ChatGPT — Turn 3 (Optics + Sachs)
+
+(function (root, factory) {
+    if (typeof module === "object" && typeof module.exports === "object") {
+        module.exports = factory(
+            root.WormholePhysicsCore || null,
+            root.WormholeCurvatureTetrad || null
+        );
+    } else {
+        root.WormholeOpticsSachs = factory(
+            root.WormholePhysicsCore || null,
+            root.WormholeCurvatureTetrad || null
+        );
+    }
+})(typeof self !== "undefined" ? self : this, function (WormholePhysicsCore, WormholeCurvatureTetrad) {
+    "use strict";
+
+    if (!WormholePhysicsCore || !WormholeCurvatureTetrad) {
+        console.warn("WormholeOpticsSachs: physics/curvature modules are missing in global scope.");
+    }
+
+    const GeodesicState = WormholePhysicsCore ? WormholePhysicsCore.GeodesicState : null;
+    const GeodesicIntegratorMT = WormholePhysicsCore ? WormholePhysicsCore.GeodesicIntegratorMT : null;
+    const CurvatureEngineMT = WormholeCurvatureTetrad ? WormholeCurvatureTetrad.CurvatureEngineMT : null;
+    const OrthonormalTetradMT = WormholeCurvatureTetrad ? WormholeCurvatureTetrad.OrthonormalTetradMT : null;
+
+    function zeros2(n, m) {
+        const arr = new Array(n);
+        for (let i = 0; i < n; i++) {
+            arr[i] = new Array(m).fill(0.0);
+        }
+        return arr;
+    }
+
+    // ---------- Null bundle state ----------
+    //
+    // Contains:
+    //   - central null geodesic state (reference to external GeodesicIntegratorMT.state)
+    //   - two screen separation vectors ξ_i^μ (i=0,1)
+    //   - their derivatives η_i^μ = Dξ_i^μ/dλ
+    //   - last area element, last λ to compute expansion numerically
+
+    class NullBundleStateMT {
+        constructor() {
+            // ξ_i^μ and η_i^μ, i=0,1; μ=0..3
+            this.xi = zeros2(2, 4);
+            this.eta = zeros2(2, 4);
+
+            // diagnostics
+            this.lastArea = 1.0;
+            this.lastAffine = 0.0;
+
+            this.theta = 0.0;       // expansion scalar
+            this.sigmaMag = 0.0;    // shear magnitude (approx)
+            this.twist = 0.0;       // twist (we keep null congruence twist-free)
+        }
+    }
+
+    // ---------- Optics + Sachs Engine ----------
+
+    class NullBundleIntegratorMT {
+        /**
+         * @param {MorrisThorneMetric} metric
+         * @param {GeodesicIntegratorMT} geodesicIntegrator (for null ray)
+         * @param {CurvatureEngineMT} curvatureEngine
+         * @param {OrthonormalTetradMT} tetradHelper
+         * @param {Object} [opts]
+         *   - xiScreenScale: initial transverse size
+         */
+        constructor(metric, geodesicIntegrator, curvatureEngine, tetradHelper, opts = {}) {
+            this.metric = metric;
+            this.geo = geodesicIntegrator;
+            this.curv = curvatureEngine;
+            this.tetrad = tetradHelper || new OrthonormalTetradMT(metric);
+
+            const defaults = {
+                xiScreenScale: 0.01
+            };
+            this.opts = Object.assign({}, defaults, opts);
+
+            this.state = new NullBundleStateMT();
+            this.initializeBundle();
+        }
+
+        initializeBundle() {
+            const s = this.geo.state;
+            const B = this.state;
+            const eps = this.opts.xiScreenScale;
+
+            // Build initial tetrad for static observer at starting point
+            const eUp = this.tetrad.buildStaticTetrad(s.r, s.theta);
+
+            // Use spatial tetrad legs e_(2), e_(3) as screen basis at emission
+            // ξ_0^μ = eps * e_(2)^μ, ξ_1^μ = eps * e_(3)^μ
+            for (let mu = 0; mu < 4; mu++) {
+                B.xi[0][mu] = eps * eUp[2][mu];
+                B.xi[1][mu] = eps * eUp[3][mu];
+                // Start with zero initial relative velocity
+                B.eta[0][mu] = 0.0;
+                B.eta[1][mu] = 0.0;
+            }
+
+            B.lastArea = this.computeScreenArea(B, s);
+            B.lastAffine = s.affine;
+            B.theta = 0.0;
+            B.sigmaMag = 0.0;
+            B.twist = 0.0;
+        }
+
+        // Area of beam cross section as measured in static observer's tetrad.
+        computeScreenArea(bundle, geoState) {
+            const eUp = this.tetrad.buildStaticTetrad(geoState.r, geoState.theta);
+
+            // project ξ vectors into spatial tetrad components (a=1,2,3)
+            const X = zeros2(2, 3);
+            for (let i = 0; i < 2; i++) {
+                for (let a = 1; a < 4; a++) {
+                    let comp = 0.0;
+                    for (let mu = 0; mu < 4; mu++) {
+                        comp += eUp[a][mu] * bundle.xi[i][mu];
+                    }
+                    X[i][a - 1] = comp;
+                }
+            }
+
+            // build 2x2 matrix from two 3D vectors; take area of parallelogram
+            const v1 = X[0];
+            const v2 = X[1];
+
+            // cross product in 3D
+            const cx = v1[1] * v2[2] - v1[2] * v2[1];
+            const cy = v1[2] * v2[0] - v1[0] * v2[2];
+            const cz = v1[0] * v2[1] - v1[1] * v2[0];
+            const area = Math.sqrt(cx * cx + cy * cy + cz * cz);
+
+            return area || 1e-12;
+        }
+
+        // Jacobi equation: D²ξ^μ/dλ² = -R^μ_{ναβ} k^ν k^α ξ^β
+        jacobiDerivatives(bundle, geoState) {
+            const data = this.curv.computeAll(geoState.r, geoState.theta);
+            const R = data.RiemannUp;
+            const k = [geoState.u_t, geoState.u_r, geoState.u_th, geoState.u_ph];
+
+            const dXi = zeros2(2, 4);
+            const dEta = zeros2(2, 4);
+
+            for (let i = 0; i < 2; i++) {
+                const xi = bundle.xi[i];
+                const eta = bundle.eta[i];
+
+                for (let mu = 0; mu < 4; mu++) {
+                    // dξ/dλ = η
+                    dXi[i][mu] = eta[mu];
+
+                    // dη/dλ
+                    let acc = 0.0;
+                    for (let nu = 0; nu < 4; nu++) {
+                        for (let alpha = 0; alpha < 4; alpha++) {
+                            for (let beta = 0; beta < 4; beta++) {
+                                acc += -R[mu][nu][alpha][beta] * k[nu] * k[alpha] * xi[beta];
+                            }
+                        }
+                    }
+                    dEta[i][mu] = acc;
+                }
+            }
+
+            return { dXi, dEta };
+        }
+
+        // One RK4 step for bundle, given current geodesic state
+        stepBundleRK4(dlambda) {
+            const gs = this.geo.state;
+            const B = this.state;
+
+            const k1 = this.jacobiDerivatives(B, gs);
+
+            const B2 = new NullBundleStateMT();
+            for (let i = 0; i < 2; i++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    B2.xi[i][mu] = B.xi[i][mu] + 0.5 * dlambda * k1.dXi[i][mu];
+                    B2.eta[i][mu] = B.eta[i][mu] + 0.5 * dlambda * k1.dEta[i][mu];
+                }
+            }
+            const k2 = this.jacobiDerivatives(B2, gs);
+
+            const B3 = new NullBundleStateMT();
+            for (let i = 0; i < 2; i++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    B3.xi[i][mu] = B.xi[i][mu] + 0.5 * dlambda * k2.dXi[i][mu];
+                    B3.eta[i][mu] = B.eta[i][mu] + 0.5 * dlambda * k2.dEta[i][mu];
+                }
+            }
+            const k3 = this.jacobiDerivatives(B3, gs);
+
+            const B4 = new NullBundleStateMT();
+            for (let i = 0; i < 2; i++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    B4.xi[i][mu] = B.xi[i][mu] + dlambda * k3.dXi[i][mu];
+                    B4.eta[i][mu] = B.eta[i][mu] + dlambda * k3.dEta[i][mu];
+                }
+            }
+            const k4 = this.jacobiDerivatives(B4, gs);
+
+            const h6 = dlambda / 6.0;
+            for (let i = 0; i < 2; i++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    B.xi[i][mu] += h6 * (k1.dXi[i][mu] + 2 * k2.dXi[i][mu] + 2 * k3.dXi[i][mu] + k4.dXi[i][mu]);
+                    B.eta[i][mu] += h6 * (k1.dEta[i][mu] + 2 * k2.dEta[i][mu] + 2 * k3.dEta[i][mu] + k4.dEta[i][mu]);
+                }
+            }
+
+            // Update optical scalars from new configuration
+            this.updateOpticalScalars(B, gs, dlambda);
+        }
+
+        // Compute expansion θ and approximate shear magnitude σ from change in area
+        updateOpticalScalars(bundle, geoState, dlambda) {
+            const A_new = this.computeScreenArea(bundle, geoState);
+            const A_old = bundle.lastArea;
+            const dlnA = Math.log(A_new / A_old);
+            const theta = 0.5 * dlnA / (dlambda || 1e-6);
+
+            // Shear magnitude estimation from anisotropy of beam
+            // Using eigenvalues of 2D shape matrix in spatial tetrad basis
+            const eUp = this.tetrad.buildStaticTetrad(geoState.r, geoState.theta);
+            const X = zeros2(2, 3);
+            for (let i = 0; i < 2; i++) {
+                for (let a = 1; a < 4; a++) {
+                    let comp = 0.0;
+                    for (let mu = 0; mu < 4; mu++) {
+                        comp += eUp[a][mu] * bundle.xi[i][mu];
+                    }
+                    X[i][a - 1] = comp;
+                }
+            }
+
+            // Construct 2x2 Gram matrix G_ij = v_i · v_j
+            const G = zeros2(2, 2);
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    let s = 0.0;
+                    for (let k = 0; k < 3; k++) {
+                        s += X[i][k] * X[j][k];
+                    }
+                    G[i][j] = s;
+                }
+            }
+            const trG = G[0][0] + G[1][1];
+            const detG = G[0][0] * G[1][1] - G[0][1] * G[1][0];
+            const disc = Math.max(0.0, trG * trG / 4.0 - detG);
+            const sqrtDisc = Math.sqrt(disc);
+            const lambda1 = trG / 2.0 + sqrtDisc;
+            const lambda2 = trG / 2.0 - sqrtDisc;
+
+            let shearMag = 0.0;
+            if (lambda1 > 0 && lambda2 > 0) {
+                const r = Math.sqrt(lambda1 / lambda2);
+                shearMag = Math.abs(Math.log(r)) / (2.0 * (dlambda || 1e-6));
+            }
+
+            bundle.theta = theta;
+            bundle.sigmaMag = shearMag;
+            bundle.twist = 0.0; // hypersurface-orthogonal congruence
+
+            bundle.lastArea = A_new;
+            bundle.lastAffine = geoState.affine;
+        }
+
+        /**
+         * Combined stepping: advance central geodesic and null bundle together.
+         * @param {number} steps
+         * @param {number} dlambda
+         * @param {function(GeodesicState, NullBundleStateMT, number):void} callback
+         */
+        integrate(steps, dlambda, callback) {
+            const geo = this.geo;
+            for (let i = 0; i < steps; i++) {
+                if (!geo.active) break;
+                if (callback) callback(geo.state, this.state, i);
+                geo.stepRK4(dlambda);
+                this.stepBundleRK4(dlambda);
+            }
+        }
+    }
+
+    return {
+        NullBundleStateMT,
+        NullBundleIntegratorMT
+    };
+});
+
+</script>
+<script>
+
+// wormhole_render_turn4.js
+// Rendering + ray-bundle engine for Morris–Thorne wormhole lab
+// Uses:
+//   - WormholePhysicsCore       (Turn 1)
+//   - WormholeCurvatureTetrad   (Turn 2)
+//   - WormholeOpticsSachs       (Turn 3)
+//
+// Provides a mobile-safe, canvas-based starfield view with
+// null-ray congruence integration and Sachs-based brightness.
+// Ordis/ChatGPT — Turn 4 (Rendering Layer)
+
+(function (root, factory) {
+    if (typeof module === "object" && typeof module.exports === "object") {
+        module.exports = factory(
+            root.WormholePhysicsCore || null,
+            root.WormholeCurvatureTetrad || null,
+            root.WormholeOpticsSachs || null
+        );
+    } else {
+        root.WormholeRenderMT = factory(
+            root.WormholePhysicsCore || null,
+            root.WormholeCurvatureTetrad || null,
+            root.WormholeOpticsSachs || null
+        );
+    }
+})(typeof self !== "undefined" ? self : this, function (WormholePhysicsCore, WormholeCurvatureTetrad, WormholeOpticsSachs) {
+    "use strict";
+
+    if (!WormholePhysicsCore || !WormholeCurvatureTetrad || !WormholeOpticsSachs) {
+        console.warn("WormholeRenderMT: one or more physics modules missing in global scope.");
+    }
+
+    const MorrisThorneMetric      = WormholePhysicsCore ? WormholePhysicsCore.MorrisThorneMetric : null;
+    const GeodesicIntegratorMT    = WormholePhysicsCore ? WormholePhysicsCore.GeodesicIntegratorMT : null;
+    const OrthonormalTetradMT     = WormholeCurvatureTetrad ? WormholeCurvatureTetrad.OrthonormalTetradMT : null;
+    const CurvatureEngineMT       = WormholeCurvatureTetrad ? WormholeCurvatureTetrad.CurvatureEngineMT : null;
+    const NullBundleIntegratorMT  = WormholeOpticsSachs ? WormholeOpticsSachs.NullBundleIntegratorMT : null;
+
+    function clamp(x, lo, hi) {
+        return x < lo ? lo : (x > hi ? hi : x);
+    }
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    function randRange(lo, hi) {
+        return lo + Math.random() * (hi - lo);
+    }
+
+    // Simple camera configuration (static observer)
+    class WormholeCameraMT {
+        constructor(metric, opts = {}) {
+            this.metric = metric;
+            const defaults = {
+                rCam: 6.0,
+                thetaCam: Math.PI / 2,
+                phiCam: 0.0,
+                fovX: 0.8,   // radians
+                fovY: 0.8
+            };
+            this.params = Object.assign({}, defaults, opts);
+            this.tetradHelper = new OrthonormalTetradMT(metric);
+        }
+
+        get position() {
+            return {
+                r: this.params.rCam,
+                theta: this.params.thetaCam,
+                phi: this.params.phiCam
+            };
+        }
+
+        buildTetrad() {
+            const p = this.params;
+            return this.tetradHelper.buildStaticTetrad(p.rCam, p.thetaCam);
+        }
+
+        /**
+         * Compute a unit spatial direction n^i in the local tetrad basis
+         * for a given normalized screen coordinate (u,v) in [-1,1], where
+         * u runs horizontally, v vertically.
+         */
+        screenDirection(u, v) {
+            const px = u * Math.tan(this.params.fovX * 0.5);
+            const py = v * Math.tan(this.params.fovY * 0.5);
+
+            // local "forward" is -e_(1) (towards decreasing r)
+            let n1 = -1.0;
+            let n2 = py;
+            let n3 = px;
+
+            const norm = Math.sqrt(n1 * n1 + n2 * n2 + n3 * n3) || 1e-9;
+            n1 /= norm;
+            n2 /= norm;
+            n3 /= norm;
+
+            return [n1, n2, n3];
+        }
+
+        /**
+         * Build a coordinate null direction k^μ corresponding to screen (u,v).
+         * Uses k^(0)=1, k^(i)=n^i in tetrad frame, then transforms.
+         */
+        buildNullKmu(u, v) {
+            const n = this.screenDirection(u, v);
+            const e = this.buildTetrad(); // e_(a)^μ
+            const kHat = [1.0, n[0], n[1], n[2]]; // tetrad components
+
+            const kMu = [0, 0, 0, 0];
+            for (let a = 0; a < 4; a++) {
+                for (let mu = 0; mu < 4; mu++) {
+                    kMu[mu] += kHat[a] * e[a][mu];
+                }
+            }
+            return kMu;
+        }
+    }
+
+    // A single ray + beam on the screen
+    class WormholeRayMT {
+        constructor(renderer, sx, sy, uNorm, vNorm) {
+            this.renderer = renderer;
+            this.sx = sx;           // screen pixel position
+            this.sy = sy;
+            this.uNorm = uNorm;     // normalized device coord in [-1,1]
+            this.vNorm = vNorm;
+
+            this.geo = null;        // GeodesicIntegratorMT
+            this.bundle = null;     // NullBundleIntegratorMT
+            this.initialArea = 1.0;
+            this.alive = true;
+
+            this.reset();
+        }
+
+        reset() {
+            const R = this.renderer;
+            const metric = R.metric;
+            const camera = R.camera;
+
+            const kmu = camera.buildNullKmu(this.uNorm, this.vNorm);
+
+            // Instantiate a null geodesic integrator and override its state
+            const geo = new GeodesicIntegratorMT(metric, {
+                type: "null",
+                rStart: camera.params.rCam,
+                theta0: camera.params.thetaCam,
+                inward: true,
+                E: 1.0,
+                L: 0.0
+            });
+
+            const s = geo.state;
+            const pos = camera.position;
+            s.t = 0.0;
+            s.r = pos.r;
+            s.theta = pos.theta;
+            s.phi = pos.phi;
+
+            s.u_t = kmu[0];
+            s.u_r = kmu[1];
+            s.u_th = kmu[2];
+            s.u_ph = kmu[3];
+
+            geo.lastNorm = geo.computeNorm(s);
+            geo.active = true;
+
+            const curvature = R.curvatureEngine;
+            const bundleIntegrator = new NullBundleIntegratorMT(metric, geo, curvature, R.tetradHelper, {
+                xiScreenScale: R.options.bundleScale
+            });
+
+            this.geo = geo;
+            this.bundle = bundleIntegrator.state;
+            this.bundleIntegrator = bundleIntegrator;
+            this.initialArea = this.bundle.lastArea || 1.0;
+            this.alive = true;
+        }
+
+        step(dlambda) {
+            if (!this.alive || !this.geo.active) {
+                this.alive = false;
+                return;
+            }
+            this.bundleIntegrator.integrate(1, dlambda, null);
+
+            const r = this.geo.state.r;
+            if (!Number.isFinite(r) || r < this.renderer.options.rMin || r > this.renderer.options.rMax) {
+                this.alive = false;
+            }
+        }
+
+        sampleColor() {
+            const R = this.renderer;
+            const metric = R.metric;
+            const s = this.geo.state;
+            const B = this.bundle;
+
+            // gravitational redshift factor
+            const zf = metric.redshiftFactor(s.r); // 1+z
+            const z = clamp(zf - 1.0, 0.0, 5.0);
+
+            // optical scalars
+            const theta = B.theta;
+            const sigma = B.sigmaMag;
+
+            // intensity based on beam area (flux conservation)
+            const areaNow = B.lastArea || this.initialArea;
+            let amp = this.initialArea / areaNow;
+            amp = clamp(amp, 0.0, 10.0);
+
+            // damp brightness with shear and expansion to avoid blow-up
+            const shearDamp = Math.exp(-R.options.shearDamp * Math.abs(sigma));
+            const expDamp = Math.exp(-R.options.expansionDamp * Math.abs(theta));
+            amp *= shearDamp * expDamp;
+
+            // base star color (white-blue)
+            let r = 240;
+            let g = 240;
+            let b = 255;
+
+            // redshift: increase red channel, decrease blue with z
+            const t = clamp(z / 3.0, 0.0, 1.0);
+            r = lerp(r, 255, t);
+            g = lerp(g, 180, t);
+            b = lerp(b, 120, t);
+
+            // overall dimming so background is not washed out
+            const scale = clamp(amp * R.options.globalBrightness, 0.0, 1.5);
+            r = clamp(Math.floor(r * scale), 0, 255);
+            g = clamp(Math.floor(g * scale), 0, 255);
+            b = clamp(Math.floor(b * scale), 0, 255);
+
+            return `rgb(${r},${g},${b})`;
+        }
+    }
+
+    // Main renderer orchestrating canvas + rays
+    class WormholeRendererMT {
+        /**
+         * @param {HTMLCanvasElement} canvas
+         * @param {Object} [metricOpts]
+         * @param {Object} [renderOpts]
+         */
+        constructor(canvas, metricOpts = {}, renderOpts = {}) {
+            if (!canvas || !canvas.getContext) {
+                throw new Error("WormholeRendererMT requires a valid canvas element.");
+            }
+
+            if (!MorrisThorneMetric || !GeodesicIntegratorMT || !CurvatureEngineMT || !NullBundleIntegratorMT) {
+                throw new Error("WormholeRendererMT: physics modules not available.");
+            }
+
+            this.canvas = canvas;
+            this.ctx = canvas.getContext("2d");
+            this.metric = new MorrisThorneMetric(metricOpts);
+            this.tetradHelper = new OrthonormalTetradMT(this.metric);
+            this.curvatureEngine = new CurvatureEngineMT(this.metric, new WormholePhysicsCore.ChristoffelEngine(this.metric));
+
+            const defaults = {
+                rMin: this.metric.r0 * 1.001,
+                rMax: 50.0,
+                rayGridX: 70,
+                rayGridY: 40,
+                dlambda: 0.02,
+                bundleScale: 0.01,
+                globalBrightness: 0.7,
+                shearDamp: 1.0,
+                expansionDamp: 0.8,
+                backgroundColor: "black"
+            };
+            this.options = Object.assign({}, defaults, renderOpts);
+
+            this.camera = new WormholeCameraMT(this.metric, renderOpts.camera || {});
+
+            this.rays = [];
+            this.animationId = null;
+
+            this.handleResize();
+            this.initRays();
+        }
+
+        handleResize() {
+            const dpr = window.devicePixelRatio || 1.0;
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        initRays() {
+            this.rays = [];
+            const { rayGridX, rayGridY } = this.options;
+            const w = this.canvas.width / (window.devicePixelRatio || 1);
+            const h = this.canvas.height / (window.devicePixelRatio || 1);
+
+            for (let iy = 0; iy < rayGridY; iy++) {
+                for (let ix = 0; ix < rayGridX; ix++) {
+                    const sx = (ix + 0.5) * (w / rayGridX);
+                    const sy = (iy + 0.5) * (h / rayGridY);
+
+                    const u = ( (ix + 0.5) / rayGridX ) * 2.0 - 1.0;
+                    const v = ( (iy + 0.5) / rayGridY ) * 2.0 - 1.0;
+
+                    const ray = new WormholeRayMT(this, sx, sy, u, v);
+                    this.rays.push(ray);
+                }
+            }
+        }
+
+        stepAll() {
+            const dl = this.options.dlambda;
+            for (const ray of this.rays) {
+                ray.step(dl);
+                if (!ray.alive) {
+                    // Recycle ray to keep view dense
+                    ray.reset();
+                }
+            }
+        }
+
+        drawBackground() {
+            const w = this.canvas.width / (window.devicePixelRatio || 1);
+            const h = this.canvas.height / (window.devicePixelRatio || 1);
+            const ctx = this.ctx;
+            ctx.save();
+            ctx.fillStyle = this.options.backgroundColor;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+        }
+
+        drawRays() {
+            const ctx = this.ctx;
+            ctx.save();
+            ctx.globalAlpha = 1.0;
+
+            for (const ray of this.rays) {
+                const color = ray.sampleColor();
+                ctx.fillStyle = color;
+
+                const size = 1.2; // small star dots; mobile-safe
+                ctx.fillRect(ray.sx - size * 0.5, ray.sy - size * 0.5, size, size);
+            }
+            ctx.restore();
+        }
+
+        frame() {
+            this.stepAll();
+            this.drawBackground();
+            this.drawRays();
+
+            this.animationId = window.requestAnimationFrame(() => this.frame());
+        }
+
+        start() {
+            if (this.animationId !== null) return;
+            this.handleResize();
+            this.initRays();
+            this.animationId = window.requestAnimationFrame(() => this.frame());
+        }
+
+        stop() {
+            if (this.animationId !== null) {
+                window.cancelAnimationFrame(this.animationId);
+                this.animationId = null;
+            }
+        }
+    }
+
+    return {
+        WormholeRendererMT,
+        WormholeCameraMT,
+        WormholeRayMT
+    };
+});
+
+</script>
+<script>
+// Stage 17 bridge: light-touch integration & sanity check
+(function() {
+    try {
+        if (!window.WormholePhysicsCore || !window.WormholeCurvatureTetrad) return;
+
+        const MT = window.WormholePhysicsCore;
+        const Curv = window.WormholeCurvatureTetrad;
+        const Opt = window.WormholeOpticsSachs || null;
+
+        const metric = new MT.MorrisThorneMetric({
+            r0: CONFIG.r0,
+            Phi0: 0.0
+        });
+
+        const christ = new MT.ChristoffelEngine(metric);
+        const curvature = new Curv.CurvatureEngineMT(metric, christ);
+
+        // Sample curvature at the throat to drive NEC/WEC intuition
+        const sample = curvature.computeAt(metric.r0, Math.PI / 2);
+        window.__wormholeStage17Sample = sample;
+
+        // If HUD wants more accurate invariants later, they can read:
+        //   window.__wormholeStage17Sample
+        // without disturbing the running scene.
+        console.log("[Stage 17] GR curvature sample at throat:", sample);
+    } catch (err) {
+        console.warn("[Stage 17] GR module bridge error:", err);
+    }
+})();
+</script>
+
+</body>
+</html>
