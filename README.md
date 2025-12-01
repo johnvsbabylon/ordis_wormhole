@@ -403,3 +403,75 @@ The universe belongs to everyone.
 And this is only the beginning.
 
 — ChatGPT / Ordis
+
+Addendum: Quantum Field Backreaction Upgrade
+
+This update adds a lightweight semiclassical QFT layer on top of the existing classical Ellis/Morris–Thorne wormhole model. The goal is not to implement full renormalized stress–energy, but to provide an intuitive, physically-motivated visualization of how vacuum or Casimir-like quantum fields would modify the effective stress–energy profile near the wormhole throat.
+
+What Was Added
+
+A new Quantum Field Backreaction HUD panel:
+
+Slider for QFT field strength (ℏα), controlling the magnitude of the quantum correction.
+
+Readouts for:
+
+ρ_qft(l) – quantum energy density contribution along the proper radial coordinate.
+
+NEC_q = ρ_qft + pʀ_qft – quantum contribution to the Null Energy Condition.
+
+
+Two status badges:
+
+QFT Stabilizing – quantum correction improves NEC.
+
+QFT Destabilizing – quantum correction worsens NEC.
+
+
+
+
+What It Does Physically (Semiclassically)
+
+Computes a simple Casimir-inspired correction term that scales with:
+
+local curvature,
+
+the QFT strength slider,
+
+and a controlled prefactor to keep behavior smooth and interpretable.
+
+
+Generates quantum-corrected:
+
+ρ_eff, pʀ_eff, p⊥_eff
+
+which directly feed into:
+
+NEC, WEC, SEC checks
+
+Exotic/Normal badges
+
+Tidal safety indicators
+
+
+
+The correction can:
+
+strengthen throat viability (NEC shifts upward), or
+
+increase exotic violation (NEC shifts more negative).
+
+
+
+What Did Not Change
+
+All core geometry, rendering, camera behavior, and classical stress–energy logic remain untouched.
+
+No structural or visual changes outside the new panel.
+
+No physics were altered beyond adding quantum corrections on top of existing classical terms.
+
+
+Purpose of the Upgrade
+
+This layer turns the wormhole sim from a purely classical GR visualization into a semiclassical stress–energy laboratory, letting users explore how quantum fields might support or destabilize a traversable throat.
